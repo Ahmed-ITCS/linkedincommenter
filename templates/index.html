@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LI Bot — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0a0a0f;
+    --surface:   #0f0f17;
+    --surface2:  #13131d;
+    --border:    #1a1a2a;
+    --border2:   #222235;
+    --accent:    #00e5ff;
+    --accent2:   #7c3aed;
+    --accent3:   #10b981;
+    --danger:    #f43f5e;
+    --warn:      #f59e0b;
+    --text:      #e2e8f0;
+    --muted:     #475569;
+    --muted2:    #64748b;
+    --mono:      'IBM Plex Mono', monospace;
+    --sans:      'IBM Plex Sans', sans-serif;
+  }
+
+  html, body { height: 100%; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  /* subtle grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,255,.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,.02) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 28px;
+    height: 56px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    flex-shrink: 0;
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .logo {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+
+  .logo span { color: var(--accent); }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    border: 1px solid;
+    transition: all .3s;
+  }
+
+  .status-pill.running  { color: var(--accent3); border-color: rgba(16,185,129,.3); background: rgba(16,185,129,.08); }
+  .status-pill.stopped  { color: var(--muted2);  border-color: var(--border2);      background: transparent; }
+
+  .status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .status-pill.running .status-dot {
+    animation: blink 1.4s ease-in-out infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: .2; }
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 16px;
+    border-radius: 3px;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: 1px solid;
+    transition: all .2s;
+    text-decoration: none;
+  }
+
+  .btn-start  { color: var(--accent3); border-color: rgba(16,185,129,.4); background: rgba(16,185,129,.06); }
+  .btn-start:hover  { background: rgba(16,185,129,.15); box-shadow: 0 0 16px rgba(16,185,129,.15); }
+  .btn-stop   { color: var(--danger);  border-color: rgba(244,63,94,.4);  background: rgba(244,63,94,.06); }
+  .btn-stop:hover   { background: rgba(244,63,94,.15);  box-shadow: 0 0 16px rgba(244,63,94,.15); }
+  .btn-ghost  { color: var(--muted2);  border-color: var(--border2);      background: transparent; }
+  .btn-ghost:hover  { color: var(--text); border-color: var(--muted); }
+
+  /* ── Layout ── */
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto 1fr;
+    gap: 1px;
+    flex: 1;
+    background: var(--border);
+    position: relative;
+    z-index: 1;
+    min-height: 0;
+  }
+
+  .pane {
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .pane-full { grid-column: 1 / -1; }
+
+  .pane-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    background: var(--surface);
+  }
+
+  .pane-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--muted2);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .pane-title-accent { color: var(--accent); }
+
+  /* ── Stats row ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .stat-card {
+    background: var(--surface);
+    padding: 24px 28px;
+  }
+
+  .stat-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  .stat-value {
+    font-family: var(--mono);
+    font-size: 36px;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--text);
+  }
+
+  .stat-value.accent  { color: var(--accent); }
+  .stat-value.green   { color: var(--accent3); }
+  .stat-value.purple  { color: var(--accent2); }
+
+  /* ── Log pane ── */
+  .log-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.8;
+    min-height: 0;
+  }
+
+  .log-body::-webkit-scrollbar { width: 4px; }
+  .log-body::-webkit-scrollbar-track { background: transparent; }
+  .log-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  .log-line { display: block; padding: 1px 0; }
+  .log-line:hover { background: rgba(255,255,255,.02); }
+
+  .log-ts   { color: var(--muted); }
+  .log-info  { color: var(--text); }
+  .log-warn  { color: var(--warn); }
+  .log-error { color: var(--danger); }
+  .log-ok    { color: var(--accent3); }
+  .log-bot   { color: var(--accent); }
+
+  /* ── Comments pane ── */
+  .comments-body {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+  }
+
+  .comments-body::-webkit-scrollbar { width: 4px; }
+  .comments-body::-webkit-scrollbar-track { background: transparent; }
+  .comments-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  .comment-item {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    transition: background .15s;
+  }
+
+  .comment-item:hover { background: var(--surface); }
+
+  .comment-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .comment-time {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  .comment-urn {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 200px;
+  }
+
+  .comment-text {
+    font-size: 13px;
+    color: var(--accent);
+    font-style: italic;
+    margin-bottom: 8px;
+    line-height: 1.5;
+    font-family: var(--mono);
+  }
+
+  .comment-post {
+    font-size: 12px;
+    color: var(--muted2);
+    line-height: 1.5;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  .empty-state {
+    padding: 48px 20px;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* ── Toast ── */
+  #toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    padding: 12px 18px;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 12px;
+    border: 1px solid;
+    z-index: 999;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity .25s, transform .25s;
+    pointer-events: none;
+  }
+
+  #toast.show {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  #toast.ok  { background: rgba(16,185,129,.1); border-color: rgba(16,185,129,.3); color: var(--accent3); }
+  #toast.err { background: rgba(244,63,94,.1);  border-color: rgba(244,63,94,.3);  color: var(--danger); }
+
+  /* ── Auto-scroll toggle ── */
+  .toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted2);
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .toggle-label input { display: none; }
+
+  .toggle-track {
+    width: 28px; height: 14px;
+    border-radius: 999px;
+    background: var(--border2);
+    position: relative;
+    transition: background .2s;
+  }
+
+  .toggle-label input:checked ~ .toggle-track { background: var(--accent3); }
+
+  .toggle-track::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform .2s;
+  }
+
+  .toggle-label input:checked ~ .toggle-track::after { transform: translateX(14px); }
+</style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header>
+  <div class="header-left">
+    <div class="logo">LI<span>_</span>Bot</div>
+    <div class="status-pill {{ 'running' if running else 'stopped' }}" id="statusPill">
+      <div class="status-dot"></div>
+      <span id="statusText">{{ 'Running' if running else 'Stopped' }}</span>
+    </div>
+  </div>
+  <div class="header-right">
+    <button class="btn btn-start" id="btnStart" onclick="botAction('start')" {{ 'disabled style=opacity:.3;cursor:default' if running else '' }}>▶ Start</button>
+    <button class="btn btn-stop"  id="btnStop"  onclick="botAction('stop')"  {{ 'disabled style=opacity:.3;cursor:default' if not running else '' }}>■ Stop</button>
+    <a href="/logout" class="btn btn-ghost">Logout</a>
+  </div>
+</header>
+
+<!-- ── Stats ── -->
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-label">// total comments</div>
+    <div class="stat-value accent" id="statTotal">{{ stats.total }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">// today</div>
+    <div class="stat-value green" id="statToday">{{ stats.today }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">// bot status</div>
+    <div class="stat-value {{ 'green' if running else '' }}" id="statStatus" style="font-size:20px;padding-top:8px">
+      {{ 'ONLINE' if running else 'OFFLINE' }}
+    </div>
+  </div>
+</div>
+
+<!-- ── Main layout ── -->
+<div class="layout">
+
+  <!-- Live Logs -->
+  <div class="pane">
+    <div class="pane-header">
+      <div class="pane-title"><span class="pane-title-accent">01</span> &nbsp;Live Logs</div>
+      <label class="toggle-label">
+        <input type="checkbox" id="autoScroll" checked>
+        <div class="toggle-track"></div>
+        auto-scroll
+      </label>
+    </div>
+    <div class="log-body" id="logBody"></div>
+  </div>
+
+  <!-- Recent Comments -->
+  <div class="pane">
+    <div class="pane-header">
+      <div class="pane-title"><span class="pane-title-accent">02</span> &nbsp;Recent Comments</div>
+      <button class="btn btn-ghost" style="padding:4px 10px;font-size:10px" onclick="loadComments()">↻ Refresh</button>
+    </div>
+    <div class="comments-body" id="commentsBody">
+      <div class="empty-state">Loading...</div>
+    </div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+  // ── Toast ──
+  function toast(msg, type = 'ok') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'show ' + type;
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.className = '', 3000);
+  }
+
+  // ── Bot control ──
+  async function botAction(action) {
+    const res  = await fetch(`/api/bot/${action}`, { method: 'POST' });
+    const data = await res.json();
+    toast(data.msg, data.ok ? 'ok' : 'err');
+    if (data.ok) setTimeout(refreshStats, 800);
+  }
+
+  // ── Stats polling ──
+  async function refreshStats() {
+    const data = await fetch('/api/stats').then(r => r.json());
+    document.getElementById('statTotal').textContent = data.total;
+    document.getElementById('statToday').textContent = data.today;
+
+    const pill  = document.getElementById('statusPill');
+    const txt   = document.getElementById('statusText');
+    const stat  = document.getElementById('statStatus');
+    const start = document.getElementById('btnStart');
+    const stop  = document.getElementById('btnStop');
+
+    if (data.running) {
+      pill.className = 'status-pill running';
+      txt.textContent = 'Running';
+      stat.textContent = 'ONLINE';
+      stat.className = 'stat-value green';
+      start.disabled = true; start.style.opacity = '.3';
+      stop.disabled  = false; stop.style.opacity = '1';
+    } else {
+      pill.className = 'status-pill stopped';
+      txt.textContent = 'Stopped';
+      stat.textContent = 'OFFLINE';
+      stat.className = 'stat-value';
+      start.disabled = false; start.style.opacity = '1';
+      stop.disabled  = true;  stop.style.opacity = '.3';
+    }
+  }
+
+  setInterval(refreshStats, 5000);
+
+  // ── Comments ──
+  function formatComment(c) {
+    const d = new Date(c.created_at + 'Z');
+    const time = isNaN(d) ? c.created_at : d.toLocaleString();
+    const urn  = c.urn ? c.urn.slice(0, 40) + '...' : '—';
+    const post = c.post_text ? c.post_text.replace(/</g, '&lt;') : '';
+    const comment = c.comment ? c.comment.replace(/</g, '&lt;') : '';
+    return `
+      <div class="comment-item">
+        <div class="comment-meta">
+          <span class="comment-time">${time}</span>
+          <span class="comment-urn">${urn}</span>
+        </div>
+        <div class="comment-text">"${comment}"</div>
+        <div class="comment-post">${post}</div>
+      </div>`;
+  }
+
+  async function loadComments() {
+    const body = document.getElementById('commentsBody');
+    const data = await fetch('/api/comments').then(r => r.json());
+    if (!data.length) {
+      body.innerHTML = '<div class="empty-state">// no comments yet</div>';
+      return;
+    }
+    body.innerHTML = data.map(formatComment).join('');
+  }
+
+  loadComments();
+  setInterval(loadComments, 15000);
+
+  // ── Log streaming (SSE) ──
+  function colorLine(raw) {
+    const esc = raw.replace(/</g, '&lt;');
+    if (/\[ERROR\]/.test(esc) || /❌/.test(esc))   return `<span class="log-line log-error">${esc}</span>`;
+    if (/\[WARNING\]/.test(esc) || /⚠/.test(esc))   return `<span class="log-line log-warn">${esc}</span>`;
+    if (/✅/.test(esc) || /🚀/.test(esc))            return `<span class="log-line log-ok">${esc}</span>`;
+    if (/🤖/.test(esc) || /💬/.test(esc))            return `<span class="log-line log-bot">${esc}</span>`;
+    return `<span class="log-line log-info">${esc}</span>`;
+  }
+
+  const logBody   = document.getElementById('logBody');
+  const autoScrollChk = document.getElementById('autoScroll');
+  const MAX_LINES = 500;
+
+  const evtSrc = new EventSource('/stream/logs');
+  evtSrc.onmessage = (e) => {
+    const line = document.createElement('div');
+    line.innerHTML = colorLine(e.data);
+    logBody.appendChild(line.firstChild);
+
+    // prune old lines
+    while (logBody.children.length > MAX_LINES) {
+      logBody.removeChild(logBody.firstChild);
+    }
+
+    if (autoScrollChk.checked) {
+      logBody.scrollTop = logBody.scrollHeight;
+    }
+  };
+</script>
+</body>
+</html>

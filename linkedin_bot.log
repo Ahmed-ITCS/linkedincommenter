@@ -1,0 +1,90 @@
+2026-03-20 15:17:45 [INFO] ============================================================
+2026-03-20 15:17:45 [INFO] 🚀 LinkedIn bot starting up
+2026-03-20 15:17:45 [INFO]    LLM provider : Gemini
+2026-03-20 15:17:45 [INFO]    Gemini keys  : 5 loaded
+2026-03-20 15:17:45 [INFO]    State file   : linkedin_state.json
+2026-03-20 15:17:45 [INFO]    DB file      : commented_posts.db
+2026-03-20 15:17:45 [INFO] ============================================================
+2026-03-20 15:17:45 [INFO] 🗄️  Database initialised: commented_posts.db
+2026-03-20 15:17:47 [INFO] 🌐 Chromium launched (headless)
+2026-03-20 15:17:47 [INFO] ✅ Loaded saved LinkedIn session
+2026-03-20 15:17:47 [INFO] 📡 Navigating to feed
+2026-03-20 15:17:56 [INFO] ✅ Feed loaded
+2026-03-20 15:17:56 [INFO] ──────────────────────────────────────────────────
+2026-03-20 15:17:56 [INFO] 🔄 Round #1 started
+2026-03-20 15:17:57 [INFO] 📊 3 posts found, 2 unseen
+2026-03-20 15:17:57 [INFO] 👀 Processing urn:li:activity:7439981507504394244...
+2026-03-20 15:17:57 [INFO] ✍️  Generating comment for urn:li:activity:7439981507504394244
+2026-03-20 15:17:57 [INFO] AFC is enabled with max remote calls: 10.
+2026-03-20 15:17:59 [INFO] HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent "HTTP/1.1 200 OK"
+2026-03-20 15:17:59 [INFO] 🤖 Gemini generated comment (292 chars)
+2026-03-20 15:17:59 [INFO] 💬 Comment: "This is a great reminder that performance optimization often starts with thoughtful data access patterns, not just optimizing individual code paths. The challenge of selecting the right caching layers and invalidation strategies is indeed where the real architectural thought comes into play."
+2026-03-20 15:18:15 [INFO] ✅ Submit button clicked
+2026-03-20 15:18:19 [INFO] ✅ Commented on urn:li:activity:7439981507504394244 (1/6)
+2026-03-20 15:18:19 [INFO] ⏳ Waiting 29.1s...
+2026-03-20 15:18:48 [INFO] 👀 Processing urn:li:activity:7440373895263764480...
+2026-03-20 15:18:48 [INFO] ✍️  Generating comment for urn:li:activity:7440373895263764480
+2026-03-20 15:18:48 [INFO] AFC is enabled with max remote calls: 10.
+2026-03-20 15:18:49 [INFO] HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent "HTTP/1.1 200 OK"
+2026-03-20 15:18:49 [INFO] 🤖 Gemini generated comment (218 chars)
+2026-03-20 15:18:49 [INFO] 💬 Comment: "It's wonderful to see Ekkel AI fostering such a strong culture of appreciation; recognizing the team's dedication is truly the foundation of impactful innovation. Wishing everyone at Ekkel AI a peaceful and joyous Eid."
+2026-03-20 15:19:04 [INFO] ✅ Submit button clicked
+2026-03-20 15:19:08 [INFO] ✅ Commented on urn:li:activity:7440373895263764480 (2/6)
+2026-03-20 15:19:08 [INFO] ⏳ Waiting 28.1s...
+2026-03-20 15:19:45 [INFO] ============================================================
+2026-03-20 15:19:45 [INFO] 🚀 LinkedIn bot starting up
+2026-03-20 15:19:45 [INFO]    LLM provider : Gemini
+2026-03-20 15:19:45 [INFO]    Gemini keys  : 5 loaded
+2026-03-20 15:19:45 [INFO]    State file   : linkedin_state.json
+2026-03-20 15:19:45 [INFO]    DB file      : commented_posts.db
+2026-03-20 15:19:45 [INFO] ============================================================
+2026-03-20 15:19:45 [INFO] 🗄️  Database initialised: commented_posts.db
+2026-03-20 15:19:48 [INFO] 🌐 Chromium launched (headless)
+2026-03-20 15:19:49 [INFO] ✅ Loaded saved LinkedIn session
+2026-03-20 15:19:49 [INFO] 📡 Navigating to feed
+2026-03-20 15:20:04 [INFO] ============================================================
+2026-03-20 15:20:04 [INFO] 🚀 LinkedIn bot starting up
+2026-03-20 15:20:04 [INFO]    LLM provider : Gemini
+2026-03-20 15:20:04 [INFO]    Gemini keys  : 5 loaded
+2026-03-20 15:20:04 [INFO]    State file   : linkedin_state.json
+2026-03-20 15:20:04 [INFO]    DB file      : commented_posts.db
+2026-03-20 15:20:04 [INFO] ============================================================
+2026-03-20 15:20:04 [INFO] 🗄️  Database initialised: commented_posts.db
+2026-03-20 15:20:05 [INFO] 🌐 Chromium launched (headless)
+2026-03-20 15:20:06 [INFO] ✅ Loaded saved LinkedIn session
+2026-03-20 15:20:06 [INFO] 📡 Navigating to feed
+2026-03-20 15:20:13 [INFO] ✅ Feed loaded
+2026-03-20 15:20:13 [INFO] ──────────────────────────────────────────────────
+2026-03-20 15:20:13 [INFO] 🔄 Round #1 started
+2026-03-20 15:20:17 [INFO] 📊 3 posts found, 2 unseen
+2026-03-20 15:20:17 [INFO] 👀 Processing urn:li:activity:7440684461626658816...
+2026-03-20 15:20:17 [INFO] ✍️  Generating comment for urn:li:activity:7440684461626658816
+2026-03-20 15:20:17 [INFO] AFC is enabled with max remote calls: 10.
+2026-03-20 15:20:19 [INFO] HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent "HTTP/1.1 404 Not Found"
+2026-03-20 15:20:19 [ERROR] ❌ Gemini error: 404 NOT_FOUND. {'error': {'code': 404, 'message': 'models/gemini-3.1-flash-lite is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.', 'status': 'NOT_FOUND'}}
+2026-03-20 15:20:19 [WARNING] ⚠️  Using mock comment
+2026-03-20 15:20:19 [INFO] 💬 Comment: "This is really valuable. Appreciate the post!"
+2026-03-20 15:21:14 [INFO] ============================================================
+2026-03-20 15:21:14 [INFO] 🚀 LinkedIn bot starting up
+2026-03-20 15:21:14 [INFO]    LLM provider : Gemini
+2026-03-20 15:21:14 [INFO]    Gemini keys  : 5 loaded
+2026-03-20 15:21:14 [INFO]    State file   : linkedin_state.json
+2026-03-20 15:21:14 [INFO]    DB file      : commented_posts.db
+2026-03-20 15:21:14 [INFO] ============================================================
+2026-03-20 15:21:14 [INFO] 🗄️  Database initialised: commented_posts.db
+2026-03-20 15:21:17 [INFO] 🌐 Chromium launched (headless)
+2026-03-20 15:21:17 [INFO] ✅ Loaded saved LinkedIn session
+2026-03-20 15:21:17 [INFO] 📡 Navigating to feed
+2026-03-20 15:21:23 [INFO] ✅ Feed loaded
+2026-03-20 15:21:23 [INFO] ──────────────────────────────────────────────────
+2026-03-20 15:21:23 [INFO] 🔄 Round #1 started
+2026-03-20 15:21:23 [INFO] 📊 3 posts found, 2 unseen
+2026-03-20 15:21:23 [INFO] 👀 Processing urn:li:activity:7435696954497503232...
+2026-03-20 15:21:23 [INFO] ✍️  Generating comment for urn:li:activity:7435696954497503232
+2026-03-20 15:21:23 [INFO] AFC is enabled with max remote calls: 10.
+2026-03-20 15:21:26 [INFO] HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent "HTTP/1.1 200 OK"
+2026-03-20 15:21:26 [INFO] 🤖 Gemini generated comment (316 chars)
+2026-03-20 15:21:26 [INFO] 💬 Comment: "This is a classic challenge for anyone managing high-cost infrastructure; standard scheduling often overlooks the nuances of actual hardware utilization. It is worth exploring how to balance the architectural trade-offs of MIG versus MPS when trying to optimize GPU density without sacrificing performance isolation."
+2026-03-20 15:21:42 [INFO] ✅ Submit button clicked
+2026-03-20 15:21:46 [INFO] ✅ Commented on urn:li:activity:7435696954497503232 (1/6)
+2026-03-20 15:21:46 [INFO] ⏳ Waiting 30.4s...
