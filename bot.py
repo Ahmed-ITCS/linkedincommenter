@@ -386,5 +386,14 @@ async def run():
             log.info("😴 Sleeping 30 minutes before next round...")
             await asyncio.sleep(30 * 60)
 
+            # Refresh the feed page so LinkedIn loads new posts
+            log.info("🔄 Refreshing feed page...")
+            await page.goto("https://www.linkedin.com/feed/")
+            try:
+                await page.wait_for_selector('div[data-urn^="urn:li:activity:"]', timeout=15000)
+                log.info("✅ Feed refreshed successfully")
+            except Exception:
+                log.error("❌ Feed reload failed — will retry next round")
+
 
 asyncio.run(run())
