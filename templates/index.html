@@ -38,7 +38,6 @@
     min-height: 100vh;
   }
 
-  /* subtle grid */
   body::before {
     content: '';
     position: fixed;
@@ -66,11 +65,7 @@
     flex-shrink: 0;
   }
 
-  .header-left {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
+  .header-left { display: flex; align-items: center; gap: 12px; }
 
   .logo {
     font-family: var(--mono);
@@ -80,7 +75,6 @@
     text-transform: uppercase;
     color: var(--text);
   }
-
   .logo span { color: var(--accent); }
 
   .status-pill {
@@ -97,30 +91,18 @@
     border: 1px solid;
     transition: all .3s;
   }
-
   .status-pill.running  { color: var(--accent3); border-color: rgba(16,185,129,.3); background: rgba(16,185,129,.08); }
   .status-pill.stopped  { color: var(--muted2);  border-color: var(--border2);      background: transparent; }
 
-  .status-dot {
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: currentColor;
-  }
-
-  .status-pill.running .status-dot {
-    animation: blink 1.4s ease-in-out infinite;
-  }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .status-pill.running .status-dot { animation: blink 1.4s ease-in-out infinite; }
 
   @keyframes blink {
     0%, 100% { opacity: 1; }
     50%       { opacity: .2; }
   }
 
-  .header-right {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
+  .header-right { display: flex; align-items: center; gap: 10px; }
 
   .btn {
     display: inline-flex;
@@ -138,13 +120,14 @@
     transition: all .2s;
     text-decoration: none;
   }
-
-  .btn-start  { color: var(--accent3); border-color: rgba(16,185,129,.4); background: rgba(16,185,129,.06); }
-  .btn-start:hover  { background: rgba(16,185,129,.15); box-shadow: 0 0 16px rgba(16,185,129,.15); }
-  .btn-stop   { color: var(--danger);  border-color: rgba(244,63,94,.4);  background: rgba(244,63,94,.06); }
-  .btn-stop:hover   { background: rgba(244,63,94,.15);  box-shadow: 0 0 16px rgba(244,63,94,.15); }
-  .btn-ghost  { color: var(--muted2);  border-color: var(--border2);      background: transparent; }
-  .btn-ghost:hover  { color: var(--text); border-color: var(--muted); }
+  .btn-start { color: var(--accent3); border-color: rgba(16,185,129,.4); background: rgba(16,185,129,.06); }
+  .btn-start:hover { background: rgba(16,185,129,.15); box-shadow: 0 0 16px rgba(16,185,129,.15); }
+  .btn-stop  { color: var(--danger);  border-color: rgba(244,63,94,.4);  background: rgba(244,63,94,.06); }
+  .btn-stop:hover  { background: rgba(244,63,94,.15);  box-shadow: 0 0 16px rgba(244,63,94,.15); }
+  .btn-ghost { color: var(--muted2);  border-color: var(--border2);      background: transparent; }
+  .btn-ghost:hover { color: var(--text); border-color: var(--muted); }
+  .btn-accent { color: var(--accent); border-color: rgba(0,229,255,.3); background: rgba(0,229,255,.05); }
+  .btn-accent:hover { background: rgba(0,229,255,.12); box-shadow: 0 0 16px rgba(0,229,255,.1); }
 
   /* ── Layout ── */
   .layout {
@@ -167,8 +150,6 @@
     overflow: hidden;
   }
 
-  .pane-full { grid-column: 1 / -1; }
-
   .pane-header {
     display: flex;
     align-items: center;
@@ -190,21 +171,22 @@
     align-items: center;
     gap: 8px;
   }
-
   .pane-title-accent { color: var(--accent); }
 
   /* ── Stats row ── */
   .stats-row {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: 1fr 1fr 1fr 1.6fr;
     gap: 1px;
     background: var(--border);
     border-bottom: 1px solid var(--border);
+    position: relative;
+    z-index: 1;
   }
 
   .stat-card {
     background: var(--surface);
-    padding: 24px 28px;
+    padding: 20px 24px;
   }
 
   .stat-label {
@@ -223,10 +205,149 @@
     line-height: 1;
     color: var(--text);
   }
-
   .stat-value.accent  { color: var(--accent); }
   .stat-value.green   { color: var(--accent3); }
   .stat-value.purple  { color: var(--accent2); }
+
+  /* ── Daily Limit control card ── */
+  .limit-card {
+    background: var(--surface);
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .limit-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .limit-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .limit-slider-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .limit-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--border2);
+    outline: none;
+    cursor: pointer;
+  }
+
+  .limit-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    box-shadow: 0 0 8px rgba(0,229,255,.4);
+    transition: box-shadow .2s;
+  }
+  .limit-slider::-webkit-slider-thumb:hover {
+    box-shadow: 0 0 14px rgba(0,229,255,.7);
+  }
+  .limit-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 0 8px rgba(0,229,255,.4);
+  }
+
+  .limit-range-labels {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--muted);
+  }
+
+  .limit-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .limit-input {
+    width: 58px;
+    background: var(--bg);
+    border: 1px solid var(--border2);
+    border-radius: 3px;
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 600;
+    text-align: center;
+    padding: 4px 6px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .limit-input:focus { border-color: rgba(0,229,255,.5); }
+  .limit-input::-webkit-inner-spin-button,
+  .limit-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+  .limit-save-btn {
+    padding: 5px 12px;
+    font-size: 10px;
+    border-radius: 3px;
+    font-family: var(--mono);
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: 1px solid rgba(0,229,255,.3);
+    background: rgba(0,229,255,.06);
+    color: var(--accent);
+    transition: all .2s;
+    white-space: nowrap;
+  }
+  .limit-save-btn:hover { background: rgba(0,229,255,.15); box-shadow: 0 0 12px rgba(0,229,255,.15); }
+  .limit-save-btn:disabled { opacity: .4; cursor: default; }
+
+  .limit-progress-bar {
+    width: 100%;
+    height: 3px;
+    background: var(--border2);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 2px;
+  }
+
+  .limit-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent3), var(--accent));
+    border-radius: 2px;
+    transition: width .6s ease;
+  }
+
+  .limit-sub {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted2);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
 
   /* ── Log pane ── */
   .log-body {
@@ -238,7 +359,6 @@
     line-height: 1.8;
     min-height: 0;
   }
-
   .log-body::-webkit-scrollbar { width: 4px; }
   .log-body::-webkit-scrollbar-track { background: transparent; }
   .log-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
@@ -246,7 +366,7 @@
   .log-line { display: block; padding: 1px 0; }
   .log-line:hover { background: rgba(255,255,255,.02); }
 
-  .log-ts   { color: var(--muted); }
+  .log-ts    { color: var(--muted); }
   .log-info  { color: var(--text); }
   .log-warn  { color: var(--warn); }
   .log-error { color: var(--danger); }
@@ -254,12 +374,7 @@
   .log-bot   { color: var(--accent); }
 
   /* ── Comments pane ── */
-  .comments-body {
-    flex: 1;
-    overflow-y: auto;
-    min-height: 0;
-  }
-
+  .comments-body { flex: 1; overflow-y: auto; min-height: 0; }
   .comments-body::-webkit-scrollbar { width: 4px; }
   .comments-body::-webkit-scrollbar-track { background: transparent; }
   .comments-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
@@ -269,7 +384,6 @@
     border-bottom: 1px solid var(--border);
     transition: background .15s;
   }
-
   .comment-item:hover { background: var(--surface); }
 
   .comment-meta {
@@ -278,49 +392,12 @@
     justify-content: space-between;
     margin-bottom: 8px;
   }
+  .comment-time { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+  .comment-urn { font-family: var(--mono); font-size: 10px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px; }
+  .comment-text { font-size: 13px; color: var(--accent); font-style: italic; margin-bottom: 8px; line-height: 1.5; font-family: var(--mono); }
+  .comment-post { font-size: 12px; color: var(--muted2); line-height: 1.5; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 
-  .comment-time {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--muted);
-  }
-
-  .comment-urn {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--muted);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 200px;
-  }
-
-  .comment-text {
-    font-size: 13px;
-    color: var(--accent);
-    font-style: italic;
-    margin-bottom: 8px;
-    line-height: 1.5;
-    font-family: var(--mono);
-  }
-
-  .comment-post {
-    font-size: 12px;
-    color: var(--muted2);
-    line-height: 1.5;
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-  }
-
-  .empty-state {
-    padding: 48px 20px;
-    text-align: center;
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--muted);
-  }
+  .empty-state { padding: 48px 20px; text-align: center; font-family: var(--mono); font-size: 12px; color: var(--muted); }
 
   /* ── Toast ── */
   #toast {
@@ -338,16 +415,11 @@
     transition: opacity .25s, transform .25s;
     pointer-events: none;
   }
-
-  #toast.show {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
+  #toast.show { opacity: 1; transform: translateY(0); }
   #toast.ok  { background: rgba(16,185,129,.1); border-color: rgba(16,185,129,.3); color: var(--accent3); }
   #toast.err { background: rgba(244,63,94,.1);  border-color: rgba(244,63,94,.3);  color: var(--danger); }
 
-  /* ── Auto-scroll toggle ── */
+  /* ── Toggle ── */
   .toggle-label {
     display: flex;
     align-items: center;
@@ -358,29 +430,10 @@
     cursor: pointer;
     user-select: none;
   }
-
   .toggle-label input { display: none; }
-
-  .toggle-track {
-    width: 28px; height: 14px;
-    border-radius: 999px;
-    background: var(--border2);
-    position: relative;
-    transition: background .2s;
-  }
-
+  .toggle-track { width: 28px; height: 14px; border-radius: 999px; background: var(--border2); position: relative; transition: background .2s; }
   .toggle-label input:checked ~ .toggle-track { background: var(--accent3); }
-
-  .toggle-track::after {
-    content: '';
-    position: absolute;
-    top: 2px; left: 2px;
-    width: 10px; height: 10px;
-    border-radius: 50%;
-    background: #fff;
-    transition: transform .2s;
-  }
-
+  .toggle-track::after { content: ''; position: absolute; top: 2px; left: 2px; width: 10px; height: 10px; border-radius: 50%; background: #fff; transition: transform .2s; }
   .toggle-label input:checked ~ .toggle-track::after { transform: translateX(14px); }
 </style>
 </head>
@@ -416,6 +469,30 @@
     <div class="stat-label">// bot status</div>
     <div class="stat-value {{ 'green' if running else '' }}" id="statStatus" style="font-size:20px;padding-top:8px">
       {{ 'ONLINE' if running else 'OFFLINE' }}
+    </div>
+  </div>
+
+  <!-- Daily Limit card -->
+  <div class="limit-card">
+    <div class="limit-label">// daily comment limit</div>
+    <div class="limit-control">
+      <div class="limit-slider-wrap">
+        <input type="range" class="limit-slider" id="limitSlider"
+               min="1" max="100" step="1" value="{{ daily_limit }}">
+        <div class="limit-range-labels"><span>1</span><span>25</span><span>50</span><span>75</span><span>100</span></div>
+      </div>
+      <div class="limit-input-wrap">
+        <input type="number" class="limit-input" id="limitInput"
+               min="1" max="500" value="{{ daily_limit }}">
+        <button class="limit-save-btn" id="limitSaveBtn" onclick="saveLimit()">Set</button>
+      </div>
+    </div>
+    <div class="limit-progress-bar">
+      <div class="limit-progress-fill" id="limitProgress" style="width: 0%"></div>
+    </div>
+    <div class="limit-sub">
+      <span id="limitSubLeft">— / — used today</span>
+      <span id="limitSubRight">— remaining</span>
     </div>
   </div>
 </div>
@@ -469,6 +546,75 @@
     if (data.ok) setTimeout(refreshStats, 800);
   }
 
+  // ── Daily Limit ──
+  const slider   = document.getElementById('limitSlider');
+  const input    = document.getElementById('limitInput');
+  const saveBtn  = document.getElementById('limitSaveBtn');
+
+  // Keep slider and input in sync
+  slider.addEventListener('input', () => {
+    input.value = slider.value;
+    markDirty();
+  });
+  input.addEventListener('input', () => {
+    const v = Math.min(500, Math.max(1, parseInt(input.value) || 1));
+    slider.value = Math.min(v, 100);
+    markDirty();
+  });
+
+  let _dirty = false;
+  function markDirty() {
+    _dirty = true;
+    saveBtn.style.color = 'var(--warn)';
+    saveBtn.style.borderColor = 'rgba(245,158,11,.4)';
+  }
+  function markClean() {
+    _dirty = false;
+    saveBtn.style.color = '';
+    saveBtn.style.borderColor = '';
+  }
+
+  async function saveLimit() {
+    const limit = parseInt(input.value);
+    if (isNaN(limit) || limit < 1 || limit > 500) {
+      toast('Limit must be 1–500', 'err');
+      return;
+    }
+    saveBtn.disabled = true;
+    const res  = await fetch('/api/config/daily_limit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ daily_limit: limit })
+    });
+    const data = await res.json();
+    saveBtn.disabled = false;
+    toast(data.msg, data.ok ? 'ok' : 'err');
+    if (data.ok) {
+      markClean();
+      refreshStats();
+    }
+  }
+
+  function updateLimitUI(today, limit) {
+    const pct  = limit > 0 ? Math.min(100, Math.round((today / limit) * 100)) : 0;
+    const rem  = Math.max(0, limit - today);
+    document.getElementById('limitProgress').style.width = pct + '%';
+    document.getElementById('limitSubLeft').textContent  = `${today} / ${limit} used today`;
+    document.getElementById('limitSubRight').textContent = `${rem} remaining`;
+
+    // colour the progress bar when close to limit
+    const fill = document.getElementById('limitProgress');
+    if (pct >= 100)      fill.style.background = 'var(--danger)';
+    else if (pct >= 75)  fill.style.background = 'linear-gradient(90deg, var(--warn), var(--danger))';
+    else                 fill.style.background = 'linear-gradient(90deg, var(--accent3), var(--accent))';
+
+    // sync controls only if user hasn't started editing
+    if (!_dirty) {
+      input.value  = limit;
+      slider.value = Math.min(limit, 100);
+    }
+  }
+
   // ── Stats polling ──
   async function refreshStats() {
     const data = await fetch('/api/stats').then(r => r.json());
@@ -496,13 +642,18 @@
       start.disabled = false; start.style.opacity = '1';
       stop.disabled  = true;  stop.style.opacity = '.3';
     }
+
+    if (data.daily_limit !== undefined) {
+      updateLimitUI(data.today, data.daily_limit);
+    }
   }
 
   setInterval(refreshStats, 5000);
+  refreshStats(); // run immediately on load
 
   // ── Comments ──
   function formatComment(c) {
-    const d = new Date(c.created_at + 'Z');
+    const d    = new Date(c.created_at + 'Z');
     const time = isNaN(d) ? c.created_at : d.toLocaleString();
     const urn  = c.urn ? c.urn.slice(0, 40) + '...' : '—';
     const post = c.post_text ? c.post_text.replace(/</g, '&lt;') : '';
@@ -535,30 +686,23 @@
   function colorLine(raw) {
     const esc = raw.replace(/</g, '&lt;');
     if (/\[ERROR\]/.test(esc) || /❌/.test(esc))   return `<span class="log-line log-error">${esc}</span>`;
-    if (/\[WARNING\]/.test(esc) || /⚠/.test(esc))   return `<span class="log-line log-warn">${esc}</span>`;
-    if (/✅/.test(esc) || /🚀/.test(esc))            return `<span class="log-line log-ok">${esc}</span>`;
-    if (/🤖/.test(esc) || /💬/.test(esc))            return `<span class="log-line log-bot">${esc}</span>`;
+    if (/\[WARNING\]/.test(esc) || /⚠/.test(esc))  return `<span class="log-line log-warn">${esc}</span>`;
+    if (/✅/.test(esc) || /🚀/.test(esc))           return `<span class="log-line log-ok">${esc}</span>`;
+    if (/🤖/.test(esc) || /💬/.test(esc))           return `<span class="log-line log-bot">${esc}</span>`;
     return `<span class="log-line log-info">${esc}</span>`;
   }
 
-  const logBody   = document.getElementById('logBody');
+  const logBody       = document.getElementById('logBody');
   const autoScrollChk = document.getElementById('autoScroll');
-  const MAX_LINES = 500;
+  const MAX_LINES     = 500;
 
   const evtSrc = new EventSource('/stream/logs');
   evtSrc.onmessage = (e) => {
     const line = document.createElement('div');
     line.innerHTML = colorLine(e.data);
     logBody.appendChild(line.firstChild);
-
-    // prune old lines
-    while (logBody.children.length > MAX_LINES) {
-      logBody.removeChild(logBody.firstChild);
-    }
-
-    if (autoScrollChk.checked) {
-      logBody.scrollTop = logBody.scrollHeight;
-    }
+    while (logBody.children.length > MAX_LINES) logBody.removeChild(logBody.firstChild);
+    if (autoScrollChk.checked) logBody.scrollTop = logBody.scrollHeight;
   };
 </script>
 </body>
