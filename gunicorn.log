@@ -1,0 +1,271 @@
+[2026-03-20 10:40:54 +0000] [171345] [INFO] Starting gunicorn 25.1.0
+[2026-03-20 10:40:54 +0000] [171345] [INFO] Listening at: http://127.0.0.1:5005 (171345)
+[2026-03-20 10:40:54 +0000] [171345] [INFO] Using worker: sync
+[2026-03-20 10:40:54 +0000] [171345] [INFO] Control socket listening at /home/frappe/ahmedstuff/linkedincommenter/gunicorn.ctl
+[2026-03-20 10:40:54 +0000] [171347] [INFO] Booting worker with pid: 171347
+[2026-03-20 10:52:39 +0000] [171345] [CRITICAL] WORKER TIMEOUT (pid:171347)
+[2026-03-20 10:52:39 +0000] [171347] [ERROR] Error handling request /stream/logs
+Traceback (most recent call last):
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/sync.py", line 142, in handle
+    self.handle_request(listener, req, client, addr)
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/sync.py", line 190, in handle_request
+    for item in respiter:
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/werkzeug/wsgi.py", line 256, in __next__
+    return self._next()
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/werkzeug/wrappers/response.py", line 32, in _iter_encoded
+    for item in iterable:
+  File "/home/frappe/ahmedstuff/linkedincommenter/app.py", line 183, in generate
+    time.sleep(0.5)
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/base.py", line 198, in handle_abort
+    sys.exit(1)
+SystemExit: 1
+[2026-03-20 10:52:39 +0000] [171347] [INFO] Worker exiting (pid: 171347)
+[2026-03-20 10:52:39 +0000] [172787] [INFO] Booting worker with pid: 172787
+[2026-03-20 10:54:40 +0000] [171345] [CRITICAL] WORKER TIMEOUT (pid:172787)
+[2026-03-20 10:54:40 +0000] [172787] [ERROR] Error handling request /stream/logs
+Traceback (most recent call last):
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/sync.py", line 142, in handle
+    self.handle_request(listener, req, client, addr)
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/sync.py", line 190, in handle_request
+    for item in respiter:
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/werkzeug/wsgi.py", line 256, in __next__
+    return self._next()
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/werkzeug/wrappers/response.py", line 32, in _iter_encoded
+    for item in iterable:
+  File "/home/frappe/ahmedstuff/linkedincommenter/app.py", line 183, in generate
+    time.sleep(0.5)
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/base.py", line 198, in handle_abort
+    sys.exit(1)
+SystemExit: 1
+[2026-03-20 10:54:40 +0000] [172787] [INFO] Worker exiting (pid: 172787)
+[2026-03-20 10:54:40 +0000] [172791] [INFO] Booting worker with pid: 172791
+[2026-03-20 10:56:47 +0000] [171345] [CRITICAL] WORKER TIMEOUT (pid:172791)
+[2026-03-20 10:56:47 +0000] [172791] [ERROR] Error handling request /stream/logs
+Traceback (most recent call last):
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/sync.py", line 142, in handle
+    self.handle_request(listener, req, client, addr)
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/sync.py", line 190, in handle_request
+    for item in respiter:
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/werkzeug/wsgi.py", line 256, in __next__
+    return self._next()
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/werkzeug/wrappers/response.py", line 32, in _iter_encoded
+    for item in iterable:
+  File "/home/frappe/ahmedstuff/linkedincommenter/app.py", line 183, in generate
+    time.sleep(0.5)
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/base.py", line 198, in handle_abort
+    sys.exit(1)
+SystemExit: 1
+[2026-03-20 10:56:47 +0000] [172791] [INFO] Worker exiting (pid: 172791)
+[2026-03-20 10:56:47 +0000] [172805] [INFO] Booting worker with pid: 172805
+[2026-03-20 10:58:58 +0000] [171345] [CRITICAL] WORKER TIMEOUT (pid:172805)
+[2026-03-20 10:58:58 +0000] [172805] [ERROR] Error handling request /stream/logs
+Traceback (most recent call last):
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/sync.py", line 142, in handle
+    self.handle_request(listener, req, client, addr)
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/sync.py", line 190, in handle_request
+    for item in respiter:
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/werkzeug/wsgi.py", line 256, in __next__
+    return self._next()
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/werkzeug/wrappers/response.py", line 32, in _iter_encoded
+    for item in iterable:
+  File "/home/frappe/ahmedstuff/linkedincommenter/app.py", line 183, in generate
+    time.sleep(0.5)
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/base.py", line 198, in handle_abort
+    sys.exit(1)
+SystemExit: 1
+[2026-03-20 10:58:58 +0000] [172805] [INFO] Worker exiting (pid: 172805)
+[2026-03-20 10:58:58 +0000] [172809] [INFO] Booting worker with pid: 172809
+[2026-03-20 11:00:59 +0000] [171345] [CRITICAL] WORKER TIMEOUT (pid:172809)
+[2026-03-20 11:00:59 +0000] [172809] [ERROR] Error handling request /stream/logs
+Traceback (most recent call last):
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/sync.py", line 142, in handle
+    self.handle_request(listener, req, client, addr)
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/sync.py", line 190, in handle_request
+    for item in respiter:
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/werkzeug/wsgi.py", line 256, in __next__
+    return self._next()
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/werkzeug/wrappers/response.py", line 32, in _iter_encoded
+    for item in iterable:
+  File "/home/frappe/ahmedstuff/linkedincommenter/app.py", line 183, in generate
+    time.sleep(0.5)
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/base.py", line 198, in handle_abort
+    sys.exit(1)
+SystemExit: 1
+[2026-03-20 11:00:59 +0000] [172809] [INFO] Worker exiting (pid: 172809)
+[2026-03-20 11:00:59 +0000] [172870] [INFO] Booting worker with pid: 172870
+[2026-03-20 11:03:02 +0000] [171345] [CRITICAL] WORKER TIMEOUT (pid:172870)
+[2026-03-20 11:03:02 +0000] [172870] [ERROR] Error handling request /stream/logs
+Traceback (most recent call last):
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/sync.py", line 142, in handle
+    self.handle_request(listener, req, client, addr)
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/sync.py", line 190, in handle_request
+    for item in respiter:
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/werkzeug/wsgi.py", line 256, in __next__
+    return self._next()
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/werkzeug/wrappers/response.py", line 32, in _iter_encoded
+    for item in iterable:
+  File "/home/frappe/ahmedstuff/linkedincommenter/app.py", line 183, in generate
+    time.sleep(0.5)
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/base.py", line 198, in handle_abort
+    sys.exit(1)
+SystemExit: 1
+[2026-03-20 11:03:02 +0000] [172870] [INFO] Worker exiting (pid: 172870)
+[2026-03-20 11:03:02 +0000] [172873] [INFO] Booting worker with pid: 172873
+[2026-03-20 11:05:05 +0000] [171345] [CRITICAL] WORKER TIMEOUT (pid:172873)
+[2026-03-20 11:05:05 +0000] [172873] [ERROR] Error handling request /stream/logs
+Traceback (most recent call last):
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/sync.py", line 142, in handle
+    self.handle_request(listener, req, client, addr)
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/sync.py", line 190, in handle_request
+    for item in respiter:
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/werkzeug/wsgi.py", line 256, in __next__
+    return self._next()
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/werkzeug/wrappers/response.py", line 32, in _iter_encoded
+    for item in iterable:
+  File "/home/frappe/ahmedstuff/linkedincommenter/app.py", line 183, in generate
+    time.sleep(0.5)
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/base.py", line 198, in handle_abort
+    sys.exit(1)
+SystemExit: 1
+[2026-03-20 11:05:05 +0000] [172873] [INFO] Worker exiting (pid: 172873)
+[2026-03-20 11:05:05 +0000] [172888] [INFO] Booting worker with pid: 172888
+[2026-03-20 11:15:21 +0000] [171345] [CRITICAL] WORKER TIMEOUT (pid:172888)
+[2026-03-20 11:15:21 +0000] [172888] [ERROR] Error handling request /stream/logs
+Traceback (most recent call last):
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/sync.py", line 142, in handle
+    self.handle_request(listener, req, client, addr)
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/sync.py", line 190, in handle_request
+    for item in respiter:
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/werkzeug/wsgi.py", line 256, in __next__
+    return self._next()
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/werkzeug/wrappers/response.py", line 32, in _iter_encoded
+    for item in iterable:
+  File "/home/frappe/ahmedstuff/linkedincommenter/app.py", line 183, in generate
+    time.sleep(0.5)
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/base.py", line 198, in handle_abort
+    sys.exit(1)
+SystemExit: 1
+[2026-03-20 11:15:21 +0000] [172888] [INFO] Worker exiting (pid: 172888)
+[2026-03-20 11:15:21 +0000] [173401] [INFO] Booting worker with pid: 173401
+[2026-03-20 11:17:22 +0000] [171345] [CRITICAL] WORKER TIMEOUT (pid:173401)
+[2026-03-20 11:17:22 +0000] [173401] [ERROR] Error handling request /stream/logs
+Traceback (most recent call last):
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/sync.py", line 142, in handle
+    self.handle_request(listener, req, client, addr)
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/sync.py", line 190, in handle_request
+    for item in respiter:
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/werkzeug/wsgi.py", line 256, in __next__
+    return self._next()
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/werkzeug/wrappers/response.py", line 32, in _iter_encoded
+    for item in iterable:
+  File "/home/frappe/ahmedstuff/linkedincommenter/app.py", line 183, in generate
+    time.sleep(0.5)
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/base.py", line 198, in handle_abort
+    sys.exit(1)
+SystemExit: 1
+[2026-03-20 11:17:22 +0000] [173401] [INFO] Worker exiting (pid: 173401)
+[2026-03-20 11:17:22 +0000] [173437] [INFO] Booting worker with pid: 173437
+[2026-03-20 11:19:28 +0000] [171345] [CRITICAL] WORKER TIMEOUT (pid:173437)
+[2026-03-20 11:19:28 +0000] [173437] [ERROR] Error handling request /stream/logs
+Traceback (most recent call last):
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/sync.py", line 142, in handle
+    self.handle_request(listener, req, client, addr)
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/sync.py", line 190, in handle_request
+    for item in respiter:
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/werkzeug/wsgi.py", line 256, in __next__
+    return self._next()
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/werkzeug/wrappers/response.py", line 32, in _iter_encoded
+    for item in iterable:
+  File "/home/frappe/ahmedstuff/linkedincommenter/app.py", line 183, in generate
+    time.sleep(0.5)
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/base.py", line 198, in handle_abort
+    sys.exit(1)
+SystemExit: 1
+[2026-03-20 11:19:28 +0000] [173437] [INFO] Worker exiting (pid: 173437)
+[2026-03-20 11:19:28 +0000] [173439] [INFO] Booting worker with pid: 173439
+[2026-03-20 11:21:30 +0000] [171345] [CRITICAL] WORKER TIMEOUT (pid:173439)
+[2026-03-20 11:21:30 +0000] [173439] [ERROR] Error handling request /stream/logs
+Traceback (most recent call last):
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/sync.py", line 142, in handle
+    self.handle_request(listener, req, client, addr)
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/sync.py", line 190, in handle_request
+    for item in respiter:
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/werkzeug/wsgi.py", line 256, in __next__
+    return self._next()
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/werkzeug/wrappers/response.py", line 32, in _iter_encoded
+    for item in iterable:
+  File "/home/frappe/ahmedstuff/linkedincommenter/app.py", line 183, in generate
+    time.sleep(0.5)
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/base.py", line 198, in handle_abort
+    sys.exit(1)
+SystemExit: 1
+[2026-03-20 11:21:30 +0000] [173439] [INFO] Worker exiting (pid: 173439)
+[2026-03-20 11:21:30 +0000] [173455] [INFO] Booting worker with pid: 173455
+[2026-03-20 11:23:31 +0000] [171345] [CRITICAL] WORKER TIMEOUT (pid:173455)
+[2026-03-20 11:23:31 +0000] [173455] [ERROR] Error handling request /stream/logs
+Traceback (most recent call last):
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/sync.py", line 142, in handle
+    self.handle_request(listener, req, client, addr)
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/sync.py", line 190, in handle_request
+    for item in respiter:
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/werkzeug/wsgi.py", line 256, in __next__
+    return self._next()
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/werkzeug/wrappers/response.py", line 32, in _iter_encoded
+    for item in iterable:
+  File "/home/frappe/ahmedstuff/linkedincommenter/app.py", line 183, in generate
+    time.sleep(0.5)
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/base.py", line 198, in handle_abort
+    sys.exit(1)
+SystemExit: 1
+[2026-03-20 11:23:31 +0000] [173455] [INFO] Worker exiting (pid: 173455)
+[2026-03-20 11:23:31 +0000] [173482] [INFO] Booting worker with pid: 173482
+[2026-03-20 11:25:31 +0000] [171345] [CRITICAL] WORKER TIMEOUT (pid:173482)
+[2026-03-20 11:25:31 +0000] [173482] [ERROR] Error handling request /stream/logs
+Traceback (most recent call last):
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/sync.py", line 142, in handle
+    self.handle_request(listener, req, client, addr)
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/sync.py", line 190, in handle_request
+    for item in respiter:
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/werkzeug/wsgi.py", line 256, in __next__
+    return self._next()
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/werkzeug/wrappers/response.py", line 32, in _iter_encoded
+    for item in iterable:
+  File "/home/frappe/ahmedstuff/linkedincommenter/app.py", line 183, in generate
+    time.sleep(0.5)
+  File "/home/frappe/ahmedstuff/linkedincommenter/venv/lib/python3.10/site-packages/gunicorn/workers/base.py", line 198, in handle_abort
+    sys.exit(1)
+SystemExit: 1
+[2026-03-20 11:25:31 +0000] [173482] [INFO] Worker exiting (pid: 173482)
+[2026-03-20 11:25:31 +0000] [173497] [INFO] Booting worker with pid: 173497
+[2026-03-20 11:27:31 +0000] [171345] [INFO] Handling signal: term
+[2026-03-20 11:27:31 +0000] [173497] [INFO] Worker exiting (pid: 173497)
+[2026-03-20 11:27:31 +0000] [171345] [INFO] Worker (pid:173497) was sent SIGTERM!
+[2026-03-20 11:27:32 +0000] [171345] [INFO] Shutting down: Master
+[2026-03-20 11:27:32 +0000] [173546] [INFO] Starting gunicorn 25.1.0
+[2026-03-20 11:27:32 +0000] [173546] [INFO] Listening at: http://127.0.0.1:5005 (173546)
+[2026-03-20 11:27:32 +0000] [173546] [INFO] Using worker: gevent
+[2026-03-20 11:27:32 +0000] [173546] [INFO] Control socket listening at /home/frappe/ahmedstuff/linkedincommenter/gunicorn.ctl
+[2026-03-20 11:27:32 +0000] [173553] [INFO] Booting worker with pid: 173553
+[2026-03-20 11:30:31 +0000] [173546] [INFO] Handling signal: term
+[2026-03-20 11:31:01 +0000] [173546] [INFO] Shutting down: Master
+[2026-03-20 11:31:01 +0000] [173602] [INFO] Starting gunicorn 25.1.0
+[2026-03-20 11:31:01 +0000] [173602] [INFO] Listening at: http://127.0.0.1:5005 (173602)
+[2026-03-20 11:31:01 +0000] [173602] [INFO] Using worker: gevent
+[2026-03-20 11:31:01 +0000] [173602] [INFO] Control socket listening at /home/frappe/ahmedstuff/linkedincommenter/gunicorn.ctl
+[2026-03-20 11:31:01 +0000] [173605] [INFO] Booting worker with pid: 173605
+[2026-03-20 12:20:07 +0000] [173602] [INFO] Handling signal: term
+[2026-03-20 12:20:37 +0000] [173602] [INFO] Shutting down: Master
+[2026-03-20 12:20:37 +0000] [176278] [INFO] Starting gunicorn 25.1.0
+[2026-03-20 12:20:37 +0000] [176278] [INFO] Listening at: http://127.0.0.1:5005 (176278)
+[2026-03-20 12:20:37 +0000] [176278] [INFO] Using worker: gevent
+[2026-03-20 12:20:37 +0000] [176278] [INFO] Control socket listening at /home/frappe/ahmedstuff/linkedincommenter/gunicorn.ctl
+[2026-03-20 12:20:37 +0000] [176280] [INFO] Booting worker with pid: 176280
+[2026-03-20 12:21:10 +0000] [176278] [INFO] Handling signal: term
+[2026-03-20 12:21:40 +0000] [176278] [INFO] Shutting down: Master
+[2026-03-20 23:11:49 +0000] [182800] [INFO] Starting gunicorn 25.1.0
+[2026-03-20 23:11:49 +0000] [182800] [INFO] Listening at: http://127.0.0.1:5005 (182800)
+[2026-03-20 23:11:49 +0000] [182800] [INFO] Using worker: gevent
+[2026-03-20 23:11:49 +0000] [182800] [INFO] Control socket listening at /home/frappe/ahmedstuff/linkedincommenter/gunicorn.ctl
+[2026-03-20 23:11:49 +0000] [182802] [INFO] Booting worker with pid: 182802
+[2026-03-20 23:16:09 +0000] [182800] [INFO] Handling signal: term
+[2026-03-20 23:16:39 +0000] [182800] [INFO] Shutting down: Master
