@@ -15,6 +15,9 @@ app.secret_key = os.getenv("DASHBOARD_SECRET_KEY", "change-me-please")
 DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD", "admin")
 DB_FILE            = "commented_posts.db"
 LOG_FILE           = "linkedin_bot.log"
+CONFIG_FILE        = "bot_config.json"
+
+DEFAULT_DAILY_LIMIT = 20
 
 # ─────────────────────────────────────────────
 # Bot process state
@@ -61,12 +64,51 @@ def require_auth(f):
     return wrapper
 
 # ─────────────────────────────────────────────
+# Config helpers (daily limit stored in DB)
+# ─────────────────────────────────────────────
+def get_daily_limit() -> int:
+    try:
+        conn = get_db()
+        row = conn.execute("SELECT value FROM bot_config WHERE key='daily_limit'").fetchone()
+        conn.close()
+        return int(row["value"]) if row else DEFAULT_DAILY_LIMIT
+    except Exception:
+        return DEFAULT_DAILY_LIMIT
+
+def set_daily_limit(limit: int):
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO bot_config (key, value) VALUES ('daily_limit', ?) "
+        "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+        (str(limit),)
+    )
+    conn.commit()
+    conn.close()
+
+# ─────────────────────────────────────────────
 # DB helpers
 # ─────────────────────────────────────────────
 def get_db():
     conn = sqlite3.connect(DB_FILE)
     conn.row_factory = sqlite3.Row
     return conn
+
+def init_config_table():
+    """Ensure bot_config table exists (called at startup)."""
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS bot_config (
+                key   TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )
+        """)
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+
+init_config_table()
 
 def get_stats():
     try:
@@ -113,16 +155,18 @@ def logout():
 @app.route("/")
 @require_auth
 def index():
-    stats   = get_stats()
-    running = bot_process is not None and bot_process.poll() is None
-    return render_template("index.html", stats=stats, running=running)
+    stats       = get_stats()
+    running     = bot_process is not None and bot_process.poll() is None
+    daily_limit = get_daily_limit()
+    return render_template("index.html", stats=stats, running=running, daily_limit=daily_limit)
 
 @app.route("/api/stats")
 @require_auth
 def api_stats():
     running = bot_process is not None and bot_process.poll() is None
     stats   = get_stats()
-    stats["running"] = running
+    stats["running"]     = running
+    stats["daily_limit"] = get_daily_limit()
     return jsonify(stats)
 
 @app.route("/api/comments")
@@ -130,6 +174,30 @@ def api_stats():
 def api_comments():
     return jsonify(get_recent_comments(50))
 
+# ─────────────────────────────────────────────
+# Daily limit API
+# ─────────────────────────────────────────────
+@app.route("/api/config/daily_limit", methods=["GET"])
+@require_auth
+def api_get_daily_limit():
+    return jsonify({"daily_limit": get_daily_limit()})
+
+@app.route("/api/config/daily_limit", methods=["POST"])
+@require_auth
+def api_set_daily_limit():
+    data = request.get_json(silent=True) or {}
+    try:
+        limit = int(data.get("daily_limit", 0))
+        if limit < 1 or limit > 500:
+            return jsonify({"ok": False, "msg": "Limit must be between 1 and 500"})
+        set_daily_limit(limit)
+        return jsonify({"ok": True, "msg": f"Daily limit set to {limit}", "daily_limit": limit})
+    except (ValueError, TypeError):
+        return jsonify({"ok": False, "msg": "Invalid value"})
+
+# ─────────────────────────────────────────────
+# Bot control
+# ─────────────────────────────────────────────
 @app.route("/api/bot/start", methods=["POST"])
 @require_auth
 def bot_start():

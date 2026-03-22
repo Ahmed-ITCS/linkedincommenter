@@ -40,6 +40,8 @@ USE_GEMINI  = os.getenv("USE_GEMINI", "true").lower() == "true"
 STATE_FILE  = "linkedin_state.json"
 DB_FILE     = "commented_posts.db"
 
+DEFAULT_DAILY_LIMIT = 20
+
 # ─────────────────────────────────────────────
 # Gemini key rotation
 # ─────────────────────────────────────────────
@@ -88,7 +90,6 @@ def init_db():
     conn = sqlite3.connect(DB_FILE)
     conn.execute("CREATE TABLE IF NOT EXISTS commented (urn TEXT PRIMARY KEY)")
     conn.execute("CREATE TABLE IF NOT EXISTS commented_hashes (hash TEXT PRIMARY KEY)")
-    # Store comment text + post snippet for the dashboard
     conn.execute("""
         CREATE TABLE IF NOT EXISTS comment_log (
             id        INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -98,9 +99,38 @@ def init_db():
             created_at TEXT DEFAULT (datetime('now'))
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS bot_config (
+            key   TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        )
+    """)
     conn.commit()
     conn.close()
     log.info(f"🗄️  Database initialised: {DB_FILE}")
+
+def get_daily_limit() -> int:
+    """Read the daily comment limit from DB (live, so UI changes take effect next round)."""
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT value FROM bot_config WHERE key='daily_limit'").fetchone()
+        conn.close()
+        return int(row["value"]) if row else DEFAULT_DAILY_LIMIT
+    except Exception:
+        return DEFAULT_DAILY_LIMIT
+
+def get_today_comment_count() -> int:
+    """How many comments have already been posted today."""
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        count = conn.execute(
+            "SELECT COUNT(*) FROM comment_log WHERE DATE(created_at) = DATE('now')"
+        ).fetchone()[0]
+        conn.close()
+        return count
+    except Exception:
+        return 0
 
 def _content_hash(text: str) -> str:
     return hashlib.md5(text.strip()[:500].encode()).hexdigest()
@@ -302,8 +332,29 @@ async def run():
             log.info("─" * 50)
             log.info(f"🔄 Round #{round_number} started")
 
+            # ── Daily limit check ──────────────────────────
+            daily_limit      = get_daily_limit()
+            today_count      = get_today_comment_count()
+            remaining_today  = daily_limit - today_count
+
+            log.info(f"📅 Daily limit: {daily_limit} | Today so far: {today_count} | Remaining: {remaining_today}")
+
+            if remaining_today <= 0:
+                log.info(f"🛑 Daily limit of {daily_limit} reached — sleeping until next round")
+                await asyncio.sleep(30 * 60)
+                log.info("🔄 Refreshing feed page...")
+                await page.goto("https://www.linkedin.com/feed/")
+                try:
+                    await page.wait_for_selector('div[data-urn^="urn:li:activity:"]', timeout=15000)
+                except Exception:
+                    pass
+                continue
+
+            # Cap per-round to whichever is smaller: 6 or remaining quota
+            max_comments_per_round = min(6, remaining_today)
+            # ──────────────────────────────────────────────
+
             commented_this_round = 0
-            max_comments_per_round = 6
             all_urns = []
             seen_urns = set()
 
@@ -320,6 +371,15 @@ async def run():
                 if commented_this_round >= max_comments_per_round:
                     log.info(f"🛑 Max comments/round reached ({max_comments_per_round})")
                     break
+
+                # Re-check daily limit live in case it was changed mid-round from UI
+                daily_limit     = get_daily_limit()
+                today_count     = get_today_comment_count()
+                remaining_today = daily_limit - today_count
+                if remaining_today <= 0:
+                    log.info(f"🛑 Daily limit ({daily_limit}) reached mid-round — stopping")
+                    break
+
                 if is_already_commented(urn):
                     continue
 
@@ -347,7 +407,6 @@ async def run():
                     comment = await generate_comment(post_text)
                     log.info(f"💬 Comment: \"{comment}\"")
 
-                    # Save to DB with comment text for dashboard
                     mark_as_commented(urn, post_text, comment)
 
                     await post.scroll_into_view_if_needed()
@@ -386,7 +445,6 @@ async def run():
             log.info("😴 Sleeping 30 minutes before next round...")
             await asyncio.sleep(30 * 60)
 
-            # Refresh the feed page so LinkedIn loads new posts
             log.info("🔄 Refreshing feed page...")
             await page.goto("https://www.linkedin.com/feed/")
             try:
