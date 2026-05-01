@@ -540,10 +540,30 @@
 
   // ── Bot control ──
   async function botAction(action) {
-    const res  = await fetch(`/api/bot/${action}`, { method: 'POST' });
-    const data = await res.json();
+    let res;
+    try {
+      res = await fetch(`/api/bot/${action}`, {
+        method: 'POST',
+        headers: { 'Accept': 'application/json' },
+        credentials: 'same-origin',
+      });
+    } catch (e) {
+      toast('Network error — is the dashboard still running?', 'err');
+      return;
+    }
+    const text = await res.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      toast(res.ok ? text.slice(0, 120) : `Request failed (${res.status})`, 'err');
+      return;
+    }
     toast(data.msg, data.ok ? 'ok' : 'err');
-    if (data.ok) setTimeout(refreshStats, 800);
+    if (data.ok) {
+      refreshStats();
+      setTimeout(refreshStats, 800);
+    }
   }
 
   // ── Daily Limit ──

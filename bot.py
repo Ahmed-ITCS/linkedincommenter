@@ -1,11 +1,14 @@
 import asyncio
 import hashlib
-import random
-import sqlite3
-import os
 import logging
+import os
+import random
+import re
+import sqlite3
 import sys
+import time
 from datetime import datetime
+from urllib.parse import quote, unquote
 from dotenv import load_dotenv
 from playwright.async_api import async_playwright
 from google import genai
@@ -39,6 +42,37 @@ LLM_API_KEY = os.getenv("LLM_API_KEY")
 USE_GEMINI  = os.getenv("USE_GEMINI", "true").lower() == "true"
 STATE_FILE  = "linkedin_state.json"
 DB_FILE     = "commented_posts.db"
+FEED_HOME   = "https://www.linkedin.com/feed/"
+
+
+def _truthy_env(name: str, default: str = "false") -> bool:
+    return os.getenv(name, default).strip().lower() in ("1", "true", "yes", "on")
+
+
+LINKEDIN_HEADLESS = _truthy_env(
+    "LINKEDIN_HEADLESS", "true"
+)  # always headless in production dashboards
+LINKEDIN_WAIT_NETWORK_IDLE = _truthy_env(
+    "LINKEDIN_WAIT_NETWORK_IDLE",
+    "true",
+)  # default on: headless feeds often hydrate late
+
+VIEWPORT_W, VIEWPORT_H = 1365, 900
+# Recent Chrome UA; stale UAs hurt headless consistency on LinkedIn.
+CHROME_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/131.0.0.0 Safari/537.36"
+)
+_CHROME_ARGS = (
+    "--no-sandbox",
+    "--disable-dev-shm-usage",
+    "--disable-blink-features=AutomationControlled",
+    f"--window-size={VIEWPORT_W},{VIEWPORT_H}",
+)
+
+_ANTIDETECT_INIT = """
+Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+"""
 
 DEFAULT_DAILY_LIMIT = 20
 
@@ -227,13 +261,468 @@ async def generate_comment(post_text: str) -> str:
 # ─────────────────────────────────────────────
 # Playwright helpers
 # ─────────────────────────────────────────────
+FEED_READY_SELECTOR = (
+    '[data-urn^="urn:li:activity:"], '
+    '[data-activity-urn^="urn:li:activity:"], '
+    '[data-urn^="urn:li:ugcPost:"], '
+    '[data-activity-urn^="urn:li:ugcPost:"], '
+    "div.feed-shared-update-v2, article.feed-shared-update-v2, "
+    '[class*="feed-shared-update"], [class*="feed-shared-update-v2"], '
+    # Permalink anchors (omit main — SPA / headless often omits semantic wrappers)
+    'a[href*="/feed/update/"], a[href*="feed/update"]'
+)
+
+URN_TAGS = (
+    '[data-urn^="urn:li:activity:"], [data-activity-urn^="urn:li:activity:"], '
+    '[data-urn^="urn:li:ugcPost:"], [data-activity-urn^="urn:li:ugcPost:"]'
+)
+
+CARD_SELECTOR = (
+    'div.feed-shared-update-v2, article.feed-shared-update-v2, '
+    '[class*="feed-shared-update-v2"], [class*="feed-shared-update"]'
+)
+
+ACTIVITY_PREFIX = ('urn:li:activity:', 'urn:li:ugcPost:')
+
+# Extract LinkedIn URNs from raw href / onclick data (URLs may be %-encoded).
+URN_LI_CHUNK = re.compile(r'urn:li:(activity|ugcPost):(\d+)', re.I)
+# Rare short paths: linkedin.com/feed/update/7123456789123456890
+_FEED_NUM_ID = re.compile(r"/feed/update/(\d{12,24})(?:[/\?]|$)", re.I)
+# Vanity share links: linkedin.com/posts/user-text-7390123456789012345
+_POSTS_TAIL_ID = re.compile(r"/posts/[^\s\"'<>]+-(\d{12,})(?:\?|[/#\"]|$)", re.I)
+
+
+def _looks_like_activity_urn(val: str | None) -> bool:
+    return bool(val) and val.startswith(ACTIVITY_PREFIX)
+
+
+def _canon_li_urn(m: re.Match) -> str:
+    kind, num = m.group(1), m.group(2)
+    if kind.lower().startswith("activity"):
+        return f"urn:li:activity:{num}"
+    return f"urn:li:ugcPost:{num}"
+
+
+def _iter_urns_in_string(raw: str) -> list[str]:
+    if not raw:
+        return []
+    try:
+        raw = unquote(raw)
+    except Exception:
+        pass
+    urns = [_canon_li_urn(m) for m in URN_LI_CHUNK.finditer(raw)]
+    for m in _FEED_NUM_ID.finditer(raw):
+        urns.append(f"urn:li:activity:{m.group(1)}")
+    for m in _POSTS_TAIL_ID.finditer(raw):
+        urns.append(f"urn:li:activity:{m.group(1)}")
+    return urns
+
+
+_LINK_HARVEST_JS = r"""
+() => {
+  const sel =
+    'a[href*="feed/update"], ' +
+    'a[href*="/posts/"], ' +
+    'a[href*="urn%3Ali%3Aactivity"], ' +
+    'a[href*="li%3Aactivity"], ' +
+    'a[href*="ugcPost"], ' +
+    'a[href*="activity%3A"]';
+  const join = [...document.querySelectorAll(sel)].slice(0, 1800);
+  const out = [];
+  for (const a of join) {
+    const href = (a.getAttribute('href') || '').trim();
+    if (!href || href.startsWith('#')) continue;
+    if (a.closest('nav[aria-label*="Primary"], header.global-nav, .global-nav')) continue;
+    if (a.closest('footer')) continue;
+    out.push(href);
+  }
+  return out;
+}
+"""
+
+
+_ACTIVITY_URNS_FROM_DOM_JS = r"""
+() => {
+  function canon(g1, num) {
+    return g1.toLowerCase().startsWith("act") ? `urn:li:activity:${num}` : `urn:li:ugcPost:${num}`;
+  }
+  function pullSlice(slice) {
+    const out = [];
+    const r1 = /urn:li:(activity|ugcPost):(\d+)/gi;
+    const r2 = /urn%3Ali%3A(activity|ugcPost)%3A(\d+)/gi;
+    let m;
+    while ((m = r1.exec(slice)) !== null) out.push(canon(m[1], m[2]));
+    while ((m = r2.exec(slice)) !== null) out.push(canon(m[1], m[2]));
+    return out;
+  }
+  const h = document.documentElement.outerHTML;
+  const win = 650000;
+  const overlap = 90000;
+  const seen = new Set();
+  const merged = [];
+  for (let i = 0; i < h.length && merged.length < 400; i += win) {
+    const slice = h.slice(Math.max(0, i - overlap), Math.min(h.length, i + win + overlap));
+    for (const u of pullSlice(slice)) {
+      if (!seen.has(u)) {
+        seen.add(u);
+        merged.push(u);
+        if (merged.length >= 400) break;
+      }
+    }
+  }
+  return merged;
+}
+"""
+
+
+async def activity_urns_from_markup(page) -> list[str]:
+    try:
+        raw = await page.evaluate(_ACTIVITY_URNS_FROM_DOM_JS)
+    except Exception:
+        raw = []
+    out: list[str] = []
+    if not isinstance(raw, list):
+        return []
+    for u in raw:
+        if isinstance(u, str) and _looks_like_activity_urn(u):
+            out.append(u)
+    return out
+
+
+async def dismiss_sticky_alerts(page) -> None:
+    for sel in (
+        'button[aria-label*="Dismiss"]',
+        '[data-test-global-alert-dismiss]',
+        "button.artdeco-global-alert__dismiss",
+    ):
+        btn = page.locator(sel).first
+        if not await btn.count():
+            continue
+        try:
+            await btn.click(timeout=2000)
+            await page.wait_for_timeout(500)
+        except Exception:
+            continue
+
+
+async def activity_urns_from_article_roots(page) -> list[str]:
+    """Feed cards often mount as <article> even when outer document omits urn: literals."""
+    chunks = await page.evaluate(r"""
+      () =>
+        [...document.querySelectorAll('main article, [role="main"] article, article')]
+          .filter((a) => !a.closest('nav[aria-label*="Primary"], footer.global-footer'))
+          .slice(0, 56)
+          .map((el) => el.outerHTML.slice(0, 220000))
+    """)
+    seen: dict[str, None] = {}
+    ordered: list[str] = []
+    if not isinstance(chunks, list):
+        return []
+    for blob in chunks:
+        if not isinstance(blob, str):
+            continue
+        for u in _iter_urns_in_string(blob):
+            if _looks_like_activity_urn(u) and u not in seen:
+                seen[u] = None
+                ordered.append(u)
+    return ordered
+
+
+async def hydrate_feed_timeline(page, *, passes: int = 12) -> None:
+    """Scroll the viewport so virtualization mounts feed cards."""
+    await page.keyboard.press("Home")
+    await page.wait_for_timeout(400)
+    for i in range(passes):
+        await page.mouse.wheel(0, 850 + (i % 4) * 120)
+        await page.wait_for_timeout(420 + (i % 3) * 80)
+    await page.keyboard.press("Home")
+    await page.wait_for_timeout(520)
+
+
+async def activity_urns_from_page_links(page) -> list[str]:
+    urls = await page.evaluate(_LINK_HARVEST_JS)
+
+    seen_flag: dict[str, None] = {}
+    ordered: list[str] = []
+    for h in urls or []:
+        if not isinstance(h, str):
+            continue
+        for u in _iter_urns_in_string(h):
+            if _looks_like_activity_urn(u) and u not in seen_flag:
+                seen_flag[u] = None
+                ordered.append(u)
+    return ordered
+
+
+async def dom_has_encoded_activity_updates(page) -> bool:
+    """Fast hint for wait_for_feed_ready (avoid full-document regex every poll)."""
+    if await activity_urns_from_page_links(page):
+        return True
+    return await page.evaluate("""
+      () => {
+        const h = document.documentElement.outerHTML;
+        const head = h.slice(0, Math.min(h.length, 1800000));
+        const tail = h.length > 2000000 ? h.slice(-980000) : "";
+        const blob = head + tail;
+        return (
+          /urn:li:(activity|ugcPost):\\d+/i.test(blob) ||
+          /urn%3Ali%3A(activity|ugcPost)%3A\\d+/i.test(blob)
+        );
+      }
+    """)
+
+
+async def _urn_on_element(el) -> str | None:
+    for attr in ('data-urn', 'data-activity-urn'):
+        v = await el.get_attribute(attr)
+        if _looks_like_activity_urn(v):
+            return v
+    inner = el.locator(URN_TAGS).first
+    if await inner.count():
+        return await _urn_on_element(inner)
+    return None
+
+
+async def scoped_post_for_urn(page, urn: str):
+    """Smallest workable container for selectors (card, article, or permalink link tree)."""
+    empty = page.locator("#linkedin-commenter-scope-missing-xxxx").first
+
+    attr_hit = page.locator(f'[data-urn="{urn}"], [data-activity-urn="{urn}"]').first
+    if await attr_hit.count():
+        card = attr_hit.locator(
+            'xpath=ancestor-or-self::*[contains(@class,"feed-shared-update-v2") or '
+            'contains(@class,"feed-shared-update")][1]'
+        ).first
+        if await card.count():
+            return card
+        art = attr_hit.locator("xpath=ancestor-or-self::article[1]").first
+        if await art.count():
+            return art
+        return attr_hit
+
+    nid = urn.rsplit(":", 1)[-1]
+    if not nid.isdigit():
+        return empty
+
+    picked = empty
+    for scope_sl in ("main", '[role="main"]'):
+        root = page.locator(scope_sl).first
+        if not await root.count():
+            continue
+        lk = root.locator(f"a[href*='{nid}']").first
+        if await lk.count():
+            picked = lk
+            break
+
+    if not await picked.count():
+        for pat in (
+            f'a[href*="/feed/update/"][href*="{nid}"]',
+            f'a[href*="feed/update"][href*="{nid}"]',
+            f'a[href*="{nid}"]',
+        ):
+            alt = page.locator(pat).first
+            if await alt.count():
+                try:
+                    if await alt.evaluate(
+                        """(el) => !!el.closest('nav[aria-label*="Primary"],footer,header.global-nav,.global-nav')"""
+                    ):
+                        continue
+                except Exception:
+                    pass
+                picked = alt
+                break
+
+    if not await picked.count():
+        return empty
+
+    art_up = picked.locator("xpath=ancestor-or-self::article[1]").first
+    if await art_up.count():
+        return art_up
+    wrap = picked.locator(
+        'xpath=ancestor-or-self::*[contains(@class,"feed-shared-update") '
+        'or contains(@class,"update-components")][1]'
+    ).first
+    if await wrap.count():
+        return wrap
+    return picked
+
+
+def activity_detail_url(urn: str) -> str:
+    """Permalink used when feed shell lacks a hydrated card for this activity URN."""
+    return f"https://www.linkedin.com/feed/update/{quote(urn, safe='')}/"
+
+
+async def scoped_post_on_detail_view(page, urn: str):
+    """Single-post /feed/update/ layout — narrower DOM tree than homepage feed."""
+    empty = page.locator("#linkedin-commenter-scope-missing-xxxx").first
+    nid = urn.rsplit(":", 1)[-1]
+
+    attr_hit = page.locator(
+        f'[data-urn="{urn}"], [data-activity-urn="{urn}"], '
+        f'[data-urn*="activity:{nid}"], [data-activity-urn*="activity:{nid}"], '
+        f'[data-urn*="ugcPost:{nid}"], [data-activity-urn*="ugcPost:{nid}"]'
+    ).first
+    if await attr_hit.count():
+        art = attr_hit.locator("xpath=ancestor-or-self::article[1]").first
+        if await art.count():
+            return art
+        wrap = attr_hit.locator(
+            'xpath=ancestor-or-self::*[contains(@class,"feed-shared-update")][1]'
+        ).first
+        if await wrap.count():
+            return wrap
+        return attr_hit
+
+    with_comment = (
+        page.locator("article")
+        .filter(
+            has=page.locator(
+                'button[aria-label="Comment"], '
+                'button[aria-label*="Comment"][aria-expanded], '
+                'button.comments-comment-box__open-button'
+            )
+        )
+        .first
+    )
+    if await with_comment.count():
+        return with_comment
+
+    fb_wrap = page.locator('[class*="feed-shared-update"]').first
+    if await fb_wrap.count():
+        return fb_wrap
+
+    for scope in ('main article', '[role="main"] article', "article.relative"):
+        a = page.locator(scope).first
+        if await a.count():
+            return a
+
+    return empty
+
+
+async def return_to_feed_home(page) -> None:
+    try:
+        await page.goto(FEED_HOME, wait_until="domcontentloaded", timeout=75000)
+        await page.wait_for_timeout(2000)
+        try:
+            await wait_for_feed_ready(page, timeout_ms=40000)
+        except Exception as e:
+            log.warning("⚠️  /feed/ nav ok but readiness soft-fail: %s", e)
+    except Exception as e:
+        log.warning(f"⚠️  RETURN_TO_FEED_NAV {e}")
+
+
+async def collect_feed_activity_urns(page) -> list[str]:
+    seen: set[str] = set()
+    out: list[str] = []
+
+    def append(u: str | None):
+        if u and u not in seen and not is_already_commented(u):
+            seen.add(u)
+            out.append(u)
+
+    await dismiss_sticky_alerts(page)
+
+    if LINKEDIN_WAIT_NETWORK_IDLE:
+        try:
+            await page.wait_for_load_state("networkidle", timeout=38000)
+        except Exception:
+            pass
+
+    await hydrate_feed_timeline(page)
+
+    anchors = await activity_urns_from_page_links(page)
+    for u in anchors:
+        append(u)
+
+    embedded = await activity_urns_from_markup(page)
+    for u in embedded:
+        append(u)
+
+    from_articles = await activity_urns_from_article_roots(page)
+    for u in from_articles:
+        append(u)
+
+    cards = await page.locator(CARD_SELECTOR).all()
+    iterable: list = cards or await page.locator(URN_TAGS).all()
+    for node in iterable:
+        append(await _urn_on_element(node))
+
+    ncards = await page.locator(CARD_SELECTOR).count()
+    nun = await page.locator(URN_TAGS).count()
+    n_article = await page.locator("article").count()
+    if not out:
+        log.warning(
+            "⚠️  Feed harvest empty · <article>≈%s · cards(class)≈%s · data-attrs≈%s · "
+            "anchors≈%s · dom-regex≈%s · articles-scan≈%s — "
+            "re-export session (linkedin_state.json) or try LINKEDIN_CHROME_CHANNEL=chrome",
+            n_article,
+            ncards,
+            nun,
+            len(anchors),
+            len(embedded),
+            len(from_articles),
+        )
+    else:
+        log.info(
+            "🔗 Resolved %s unseen URNs (anchors:%s markup:%s articles-scan:%s · "
+            "<article>≈%s · cards(class)≈%s)",
+            len(out),
+            len(anchors),
+            len(embedded),
+            len(from_articles),
+            n_article,
+            ncards,
+        )
+
+    return out
+
+
+async def wait_for_feed_ready(page, timeout_ms: float = 55000):
+    deadline = time.monotonic() + timeout_ms / 1000.0
+    last_exc: BaseException | None = None
+    scroll_n = 0
+    while time.monotonic() < deadline:
+        slot_ms = (deadline - time.monotonic()) * 1000.0
+        if slot_ms < 300:
+            break
+        slice_ms = min(4500.0, slot_ms)
+        try:
+            await page.wait_for_selector(FEED_READY_SELECTOR, timeout=slice_ms)
+            return
+        except Exception as e:
+            last_exc = e
+
+        if await dom_has_encoded_activity_updates(page):
+            log.info("✅ Feed detected via permalinks (activity URN in anchor href)")
+            return
+
+        await page.mouse.wheel(0, 900)
+        scroll_n += 1
+        await page.wait_for_timeout(450 + (scroll_n % 4) * 150)
+        if scroll_n % 6 == 0:
+            await page.keyboard.press("End")
+            await page.wait_for_timeout(400)
+
+        if await dom_has_encoded_activity_updates(page):
+            log.info("✅ Feed detected via permalinks after scroll")
+            return
+
+    if last_exc:
+        raise last_exc
+    raise TimeoutError("Timed out waiting for feed content")
+
+
 async def get_post_text(post) -> str:
     selectors = [
         '.feed-shared-update-v2__description .break-words',
         '.feed-shared-text .break-words',
         '.feed-shared-update-v2__description span[dir="ltr"]',
+        '[class*="feed-shared-update-v2__description"] .break-words',
+        '[class*="feed-shared-update-v2__description"] span[dir="ltr"]',
+        '[class*="update-components-text"] span[dir="ltr"]',
         '.update-components-text span[dir="ltr"]',
         '.feed-shared-inline-show-more-text span[dir="ltr"]',
+        '[class*="feed-shared-inline-show-more-text"] span[dir="ltr"]',
     ]
     for selector in selectors:
         elem = post.locator(selector).first
@@ -278,30 +767,50 @@ async def run():
         log.info(f"   Gemini keys  : {len(GEMINI_KEYS)} loaded")
     log.info(f"   State file   : {STATE_FILE}")
     log.info(f"   DB file      : {DB_FILE}")
+    log.info(
+        "   Chromium      : %s (trimmed automation fingerprints)",
+        "headless" if LINKEDIN_HEADLESS else "headed",
+    )
+    if LINKEDIN_WAIT_NETWORK_IDLE:
+        log.info("   Feed settle   : waits for networkidle after /feed/")
     log.info("=" * 60)
 
     init_db()
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(
-            headless=True,
-            args=["--no-sandbox", "--disable-dev-shm-usage"]
+        _launch = {
+            "headless": LINKEDIN_HEADLESS,
+            "args": list(_CHROME_ARGS),
+            "ignore_default_args": ["--enable-automation"],
+        }
+        _ch = os.getenv("LINKEDIN_CHROME_CHANNEL", "").strip()
+        if _ch:
+            _launch["channel"] = _ch
+        browser = await p.chromium.launch(**_launch)
+        log.info("🌐 Chromium launched")
+
+        _ctx_kw = dict(
+            viewport={"width": VIEWPORT_W, "height": VIEWPORT_H},
+            user_agent=CHROME_USER_AGENT,
+            locale="en-US",
+            timezone_id=os.getenv("LINKEDIN_TZ", "UTC"),
+            permissions=["notifications"],
+            java_script_enabled=True,
         )
-        log.info("🌐 Chromium launched (headless)")
 
         if os.path.exists(STATE_FILE):
             context = await browser.new_context(
                 storage_state=STATE_FILE,
-                viewport={"width": 1280, "height": 800},
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                **_ctx_kw,
             )
+            await context.add_init_script(_ANTIDETECT_INIT)
             log.info("✅ Loaded saved LinkedIn session")
         else:
             log.info("🔑 No state file — performing fresh login")
             context = await browser.new_context(
-                viewport={"width": 1280, "height": 800},
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                **_ctx_kw,
             )
+            await context.add_init_script(_ANTIDETECT_INIT)
             page = await context.new_page()
             await page.goto("https://www.linkedin.com/login")
             await page.fill('input[name="session_key"]', EMAIL)
@@ -314,16 +823,41 @@ async def run():
 
         page = await context.new_page()
         log.info("📡 Navigating to feed")
-        await page.goto("https://www.linkedin.com/feed/")
+        await page.goto(FEED_HOME, wait_until="domcontentloaded", timeout=90000)
+        await dismiss_sticky_alerts(page)
+        await page.wait_for_timeout(3500)
+        if LINKEDIN_WAIT_NETWORK_IDLE:
+            try:
+                await page.wait_for_load_state("networkidle", timeout=45000)
+            except Exception:
+                pass
 
         try:
-            await page.wait_for_selector('div[data-urn^="urn:li:activity:"]', timeout=15000)
+            await wait_for_feed_ready(page)
             log.info("✅ Feed loaded")
         except Exception:
-            log.error("❌ Feed not found — not logged in or DOM changed")
-            screenshot_path = f"debug_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
-            await page.screenshot(path=screenshot_path)
-            log.error(f"📸 Screenshot: {screenshot_path}")
+            await page.mouse.wheel(0, 900)
+            await page.wait_for_timeout(1800)
+            try:
+                await wait_for_feed_ready(page, timeout_ms=15000)
+                log.info("✅ Feed loaded after scroll")
+            except Exception:
+                try:
+                    n_raw = await page.evaluate(
+                        """() => document.querySelectorAll('a[href*="feed/update"]').length"""
+                    )
+                    n_harvest = len(await activity_urns_from_page_links(page))
+                except Exception:
+                    n_raw = -1
+                    n_harvest = -1
+                log.error(
+                    "❌ Feed markers not found — refresh linkedin_state.json (login in a real browser "
+                    "then copy storage) or complete any security checkpoint. See screenshot."
+                )
+                log.error(f"   diagnostics: generic feed/update anchors={n_raw} · parsed URNs={n_harvest}")
+                screenshot_path = f"debug_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+                await page.screenshot(path=screenshot_path)
+                log.error(f"📸 Screenshot: {screenshot_path}")
 
         round_number = 0
 
@@ -343,9 +877,9 @@ async def run():
                 log.info(f"🛑 Daily limit of {daily_limit} reached — sleeping until next round")
                 await asyncio.sleep(30 * 60)
                 log.info("🔄 Refreshing feed page...")
-                await page.goto("https://www.linkedin.com/feed/")
+                await page.goto(FEED_HOME)
                 try:
-                    await page.wait_for_selector('div[data-urn^="urn:li:activity:"]', timeout=15000)
+                    await wait_for_feed_ready(page)
                 except Exception:
                     pass
                 continue
@@ -355,17 +889,7 @@ async def run():
             # ──────────────────────────────────────────────
 
             commented_this_round = 0
-            all_urns = []
-            seen_urns = set()
-
-            post_containers = await page.locator('div[data-urn^="urn:li:activity:"]').all()
-            for post in post_containers:
-                urn = await post.get_attribute("data-urn")
-                if urn and not is_already_commented(urn) and urn not in seen_urns:
-                    seen_urns.add(urn)
-                    all_urns.append(urn)
-
-            log.info(f"📊 {len(post_containers)} posts found, {len(all_urns)} unseen")
+            all_urns = await collect_feed_activity_urns(page)
 
             for urn in all_urns:
                 if commented_this_round >= max_comments_per_round:
@@ -386,8 +910,20 @@ async def run():
                 short_urn = urn[:50]
                 log.info(f"👀 Processing {short_urn}...")
 
+                opened_detail = False
                 try:
-                    post = page.locator(f'div[data-urn="{urn}"]').first
+                    post = await scoped_post_for_urn(page, urn)
+                    if not await post.count():
+                        durl = activity_detail_url(urn)
+                        log.info(
+                            "📎 No hydrated card on feed — opening detail %s…",
+                            durl[:88] + ("…" if len(durl) > 88 else ""),
+                        )
+                        await page.goto(durl, wait_until="domcontentloaded", timeout=75000)
+                        await page.wait_for_timeout(2800)
+                        opened_detail = True
+                        post = await scoped_post_on_detail_view(page, urn)
+
                     if not await post.count():
                         log.warning(f"⏭️  {short_urn} not in DOM — skipping")
                         continue
@@ -438,6 +974,9 @@ async def run():
                 except Exception as e:
                     log.error(f"❌ Error on {short_urn}: {e}", exc_info=True)
                     continue
+                finally:
+                    if opened_detail:
+                        await return_to_feed_home(page)
 
             log.info(f"✅ Round #{round_number} done — {commented_this_round} comments made")
             await page.evaluate("window.scrollBy(0, 700)")
@@ -446,12 +985,13 @@ async def run():
             await asyncio.sleep(30 * 60)
 
             log.info("🔄 Refreshing feed page...")
-            await page.goto("https://www.linkedin.com/feed/")
+            await page.goto(FEED_HOME)
             try:
-                await page.wait_for_selector('div[data-urn^="urn:li:activity:"]', timeout=15000)
+                await wait_for_feed_ready(page)
                 log.info("✅ Feed refreshed successfully")
             except Exception:
                 log.error("❌ Feed reload failed — will retry next round")
 
 
-asyncio.run(run())
+if __name__ == "__main__":
+    asyncio.run(run())

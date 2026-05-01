@@ -1,8 +1,11 @@
 import os
 import sqlite3
 import subprocess
+import sys
 import threading
+import time
 import collections
+from pathlib import Path
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, session, Response, jsonify
 from dotenv import load_dotenv
@@ -18,6 +21,9 @@ LOG_FILE           = "linkedin_bot.log"
 CONFIG_FILE        = "bot_config.json"
 
 DEFAULT_DAILY_LIMIT = 20
+
+APP_DIR = Path(__file__).resolve().parent
+BOT_SCRIPT = APP_DIR / "bot.py"
 
 # ─────────────────────────────────────────────
 # Bot process state
@@ -198,19 +204,66 @@ def api_set_daily_limit():
 # ─────────────────────────────────────────────
 # Bot control
 # ─────────────────────────────────────────────
+def _drain_stderr(pipe):
+    try:
+        while pipe.read(65536):
+            pass
+    finally:
+        try:
+            pipe.close()
+        except OSError:
+            pass
+
+
 @app.route("/api/bot/start", methods=["POST"])
 @require_auth
 def bot_start():
     global bot_process
+    if not BOT_SCRIPT.is_file():
+        return jsonify({"ok": False, "msg": f"Missing {BOT_SCRIPT.name} in {APP_DIR}"})
+
     with bot_lock:
         if bot_process and bot_process.poll() is None:
             return jsonify({"ok": False, "msg": "Bot already running"})
-        bot_process = subprocess.Popen(
-            ["python", "bot.py"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-    return jsonify({"ok": True, "msg": f"Bot started (PID {bot_process.pid})"})
+        try:
+            bot_process = subprocess.Popen(
+                [sys.executable, str(BOT_SCRIPT)],
+                cwd=str(APP_DIR),
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                env=os.environ.copy(),
+            )
+        except OSError as e:
+            bot_process = None
+            return jsonify({"ok": False, "msg": f"Failed to spawn bot: {e}"})
+
+    time.sleep(0.35)
+    with bot_lock:
+        if bot_process is None:
+            return jsonify({"ok": False, "msg": "Bot state lost — try again"})
+        code = bot_process.poll()
+        if code is None:
+            if bot_process.stderr:
+                threading.Thread(
+                    target=_drain_stderr, args=(bot_process.stderr,), daemon=True
+                ).start()
+            return jsonify({"ok": True, "msg": f"Bot started (PID {bot_process.pid})"})
+        err = ""
+        if bot_process.stderr:
+            try:
+                err = bot_process.stderr.read().decode("utf-8", "replace").strip()
+            except Exception:
+                pass
+            try:
+                bot_process.stderr.close()
+            except OSError:
+                pass
+        bot_process = None
+    tail = err[-1200:] if err else ""
+    hint = " Install deps: pip install -r requirements.txt" if "ImportError" in err or "ModuleNotFoundError" in err else ""
+    msg = tail if tail else f"Exit code {code}. Check `{LOG_FILE}` or run: python bot.py"
+    return jsonify({"ok": False, "msg": f"Bot exited immediately ({code}). {msg}{hint}"})
 
 @app.route("/api/bot/stop", methods=["POST"])
 @require_auth
