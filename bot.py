@@ -201,9 +201,9 @@ def mark_as_commented(urn: str, text: str = "", comment: str = ""):
 # ─────────────────────────────────────────────
 async def generate_comment(post_text: str) -> str:
     prompt = (
-        "you are a software engineer, you work in backend but can handle a bit of frontend and devops, "
-        "aspire to be a solution architect. Write a short (1-2 sentences), professional, human-sounding "
-        "LinkedIn comment. Add value or show genuine interest. No emojis."
+        "You are a software engineer, you work in backend, but can handle a bit of frontend and devops."
+        "Aspire to be a solution architect. Write a short (1-2 sentences), professional, human-sounding."
+        "LinkedIn comment. Add value or show genuine interest. No emojis and no hyphens"
     )
     full_prompt = f"{prompt}\n\nPost: {post_text[:700]}"
 
@@ -217,7 +217,7 @@ async def generate_comment(post_text: str) -> str:
                 log.debug(f"🤖 Calling Gemini key #{_gemini_key_idx + 1}")
                 client = genai.Client(api_key=key)
                 response = client.models.generate_content(
-                    model="gemini-2.0-flash"
+                    model="gemini-3.1-flash-lite-preview"
                     contents=full_prompt
                 )
                 comment = response.text.strip()
