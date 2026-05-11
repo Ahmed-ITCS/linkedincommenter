@@ -737,7 +737,11 @@ async def inspect_feed_blockers(page) -> dict:
         markers = await page.evaluate(
             """
             () => ({
-              loginForm: !!document.querySelector('input[name="session_key"], input[name="session_password"], form[action*="/uas/login-submit"]'),
+              loginForm: !!document.querySelector(
+                'input[name="session_key"], input[name="session_password"], ' +
+                'input#username, input#password, input[name="username"], input[name="password"], ' +
+                'form[action*="/uas/login-submit"], form[action*="/login-submit"], form[action*="/checkpoint/lg/login-submit"]'
+              ),
               challenge: !!document.querySelector('form[action*="checkpoint"], [id*="captcha"], iframe[src*="captcha"], [data-test-captcha]'),
               authWall: !!document.querySelector('[class*="authwall"], [data-test-id*="auth"], .guest-homepage'),
               hasMain: !!document.querySelector('main, [role="main"]')
@@ -772,7 +776,11 @@ async def refresh_feed_page(page) -> bool:
             log.warning("⚠️  Feed refresh attempt #%s failed: %s", attempt, e)
             diag = await inspect_feed_blockers(page)
             m = diag.get("markers", {})
-            if m.get("loginForm") or m.get("challenge") or m.get("authWall"):
+            if m.get("loginForm"):
+                log.warning("⚠️  Feed refresh hit login page — attempting auto-login")
+                if await perform_linkedin_login(page):
+                    continue
+            if m.get("challenge") or m.get("authWall"):
                 log.error(
                     "❌ Feed blocked by auth/checkpoint (url=%s, title=%s, login=%s, challenge=%s, authwall=%s)",
                     diag.get("url", ""),
@@ -784,6 +792,65 @@ async def refresh_feed_page(page) -> bool:
                 return False
             await page.wait_for_timeout(1400 * attempt)
     return False
+
+
+async def perform_linkedin_login(page, *, save_state_page=None) -> bool:
+    """Attempt login using current LinkedIn markup variants."""
+    if not EMAIL or not PASSWORD:
+        log.error("❌ Cannot auto-login: LINKEDIN_EMAIL / LINKEDIN_PASSWORD missing")
+        return False
+
+    try:
+        await page.goto("https://www.linkedin.com/login", wait_until="domcontentloaded", timeout=90000)
+    except Exception as e:
+        log.error("❌ Failed to open LinkedIn login page: %s", e)
+        return False
+
+    user_input = page.locator(
+        'input[name="session_key"], input#username, input[name="username"]'
+    ).first
+    pass_input = page.locator(
+        'input[name="session_password"], input#password, input[name="password"]'
+    ).first
+
+    try:
+        await user_input.wait_for(state="visible", timeout=12000)
+        await pass_input.wait_for(state="visible", timeout=12000)
+    except Exception:
+        log.error("❌ Login form not visible (possible auth wall or checkpoint)")
+        return False
+
+    try:
+        await user_input.fill(EMAIL)
+        await pass_input.fill(PASSWORD)
+        await page.locator(
+            'button[type="submit"], button[data-litms-control-urn*="login-submit"]'
+        ).first.click(timeout=10000)
+        log.info("⏳ Submitted login form; waiting for post-auth redirect...")
+    except Exception as e:
+        log.error("❌ Failed submitting login form: %s", e)
+        return False
+
+    await page.wait_for_timeout(8000)
+    diag = await inspect_feed_blockers(page)
+    m = diag.get("markers", {})
+    url = (diag.get("url") or "").lower()
+
+    if "linkedin.com/login" in url or m.get("loginForm") or m.get("challenge") or m.get("authWall"):
+        log.error(
+            "❌ Auto-login did not clear auth gate (url=%s, login=%s, challenge=%s, authwall=%s)",
+            diag.get("url", ""),
+            m.get("loginForm"),
+            m.get("challenge"),
+            m.get("authWall"),
+        )
+        return False
+
+    # Save refreshed cookies/session so next boot does not bounce to login again.
+    target = save_state_page or page
+    await target.context.storage_state(path=STATE_FILE)
+    log.info("✅ Auto-login successful — session saved to %s", STATE_FILE)
+    return True
 
 
 async def get_post_text(post) -> str:
@@ -886,14 +953,9 @@ async def run():
             )
             await context.add_init_script(_ANTIDETECT_INIT)
             page = await context.new_page()
-            await page.goto("https://www.linkedin.com/login")
-            await page.fill('input[name="session_key"]', EMAIL)
-            await page.fill('input[name="session_password"]', PASSWORD)
-            await page.click('button[type="submit"]')
-            log.info("⏳ Waiting 15s for auth...")
-            await page.wait_for_timeout(15000)
-            await context.storage_state(path=STATE_FILE)
-            log.info(f"✅ Login done — session saved to {STATE_FILE}")
+            ok_login = await perform_linkedin_login(page)
+            if not ok_login:
+                log.error("❌ Fresh login failed — continue with current page state")
 
         page = await context.new_page()
         log.info("📡 Navigating to feed")
@@ -916,6 +978,21 @@ async def run():
                 await wait_for_feed_ready(page, timeout_ms=15000)
                 log.info("✅ Feed loaded after scroll")
             except Exception:
+                diag = await inspect_feed_blockers(page)
+                m = diag.get("markers", {})
+                url = (diag.get("url") or "").lower()
+                # Stale/broken storage state often redirects /feed to /login.
+                if "linkedin.com/login" in url or m.get("loginForm"):
+                    log.warning("⚠️  Feed redirected to login — attempting auto-login refresh")
+                    if await perform_linkedin_login(page):
+                        log.info("📡 Re-opening feed after auto-login")
+                        await page.goto(FEED_HOME, wait_until="domcontentloaded", timeout=90000)
+                        try:
+                            await wait_for_feed_ready(page, timeout_ms=30000)
+                            log.info("✅ Feed loaded after auto-login")
+                            diag = None
+                        except Exception:
+                            pass
                 try:
                     n_raw = await page.evaluate(
                         """() => document.querySelectorAll('a[href*="feed/update"]').length"""
