@@ -755,6 +755,9 @@ async def inspect_feed_blockers(page) -> dict:
             "authWall": False,
             "hasMain": False,
         }
+    lurl = url.lower()
+    if "linkedin.com/login" in lurl or "/checkpoint/lg/login" in lurl:
+        markers["loginForm"] = True
     return {"url": url, "title": title[:140], "markers": markers}
 
 
@@ -806,18 +809,45 @@ async def perform_linkedin_login(page, *, save_state_page=None) -> bool:
         log.error("❌ Failed to open LinkedIn login page: %s", e)
         return False
 
+    try:
+        await page.wait_for_load_state("networkidle", timeout=22000)
+    except Exception:
+        pass
+    await page.wait_for_timeout(1000)
+
     user_input = page.locator(
-        'input[name="session_key"], input#username, input[name="username"]'
+        'input[name="session_key"], input#username, input[name="username"], input[type="email"]'
     ).first
     pass_input = page.locator(
-        'input[name="session_password"], input#password, input[name="password"]'
+        'input[name="session_password"], input#password, input[name="password"], input[type="password"]'
     ).first
 
     try:
-        await user_input.wait_for(state="visible", timeout=12000)
-        await pass_input.wait_for(state="visible", timeout=12000)
+        # Some login shells require a click to reveal email/password fields.
+        for reveal_sel in (
+            'a[href*="/login"]',
+            'button[data-tracking-control-name*="sign_in"]',
+            'button[aria-label*="Sign in"]',
+            'button:has-text("Sign in")',
+        ):
+            btn = page.locator(reveal_sel).first
+            if await btn.count():
+                try:
+                    await btn.click(timeout=2000)
+                    await page.wait_for_timeout(500)
+                except Exception:
+                    pass
+        await user_input.wait_for(state="attached", timeout=12000)
+        await pass_input.wait_for(state="attached", timeout=12000)
     except Exception:
-        log.error("❌ Login form not visible (possible auth wall or checkpoint)")
+        diag = await inspect_feed_blockers(page)
+        m = diag.get("markers", {})
+        log.error(
+            "❌ Login form not found (url=%s, challenge=%s, authwall=%s)",
+            diag.get("url", ""),
+            m.get("challenge"),
+            m.get("authWall"),
+        )
         return False
 
     try:
