@@ -651,6 +651,8 @@ async def collect_feed_activity_urns(page) -> list[str]:
     nun = await page.locator(URN_TAGS).count()
     n_article = await page.locator("article").count()
     if not out:
+        diag = await inspect_feed_blockers(page)
+        markers = diag.get("markers", {})
         log.warning(
             "⚠️  Feed harvest empty · <article>≈%s · cards(class)≈%s · data-attrs≈%s · "
             "anchors≈%s · dom-regex≈%s · articles-scan≈%s — "
@@ -661,6 +663,15 @@ async def collect_feed_activity_urns(page) -> list[str]:
             len(anchors),
             len(embedded),
             len(from_articles),
+        )
+        log.warning(
+            "   diagnostics: url=%s · title=%s · login=%s · challenge=%s · authwall=%s · main=%s",
+            diag.get("url", ""),
+            diag.get("title", ""),
+            markers.get("loginForm", False),
+            markers.get("challenge", False),
+            markers.get("authWall", False),
+            markers.get("hasMain", False),
         )
     else:
         log.info(
@@ -710,6 +721,69 @@ async def wait_for_feed_ready(page, timeout_ms: float = 55000):
     if last_exc:
         raise last_exc
     raise TimeoutError("Timed out waiting for feed content")
+
+
+async def inspect_feed_blockers(page) -> dict:
+    """Lightweight auth/checkpoint diagnostics when feed appears empty."""
+    try:
+        url = page.url or ""
+    except Exception:
+        url = ""
+    try:
+        title = (await page.title()) or ""
+    except Exception:
+        title = ""
+    try:
+        markers = await page.evaluate(
+            """
+            () => ({
+              loginForm: !!document.querySelector('input[name="session_key"], input[name="session_password"], form[action*="/uas/login-submit"]'),
+              challenge: !!document.querySelector('form[action*="checkpoint"], [id*="captcha"], iframe[src*="captcha"], [data-test-captcha]'),
+              authWall: !!document.querySelector('[class*="authwall"], [data-test-id*="auth"], .guest-homepage'),
+              hasMain: !!document.querySelector('main, [role="main"]')
+            })
+            """
+        )
+    except Exception:
+        markers = {
+            "loginForm": False,
+            "challenge": False,
+            "authWall": False,
+            "hasMain": False,
+        }
+    return {"url": url, "title": title[:140], "markers": markers}
+
+
+async def refresh_feed_page(page) -> bool:
+    """Navigate to feed with retries and stronger settle steps."""
+    for attempt in range(1, 4):
+        try:
+            await page.goto(FEED_HOME, wait_until="domcontentloaded", timeout=90000)
+            await dismiss_sticky_alerts(page)
+            await page.wait_for_timeout(2200)
+            if LINKEDIN_WAIT_NETWORK_IDLE:
+                try:
+                    await page.wait_for_load_state("networkidle", timeout=30000)
+                except Exception:
+                    pass
+            await wait_for_feed_ready(page, timeout_ms=45000)
+            return True
+        except Exception as e:
+            log.warning("⚠️  Feed refresh attempt #%s failed: %s", attempt, e)
+            diag = await inspect_feed_blockers(page)
+            m = diag.get("markers", {})
+            if m.get("loginForm") or m.get("challenge") or m.get("authWall"):
+                log.error(
+                    "❌ Feed blocked by auth/checkpoint (url=%s, title=%s, login=%s, challenge=%s, authwall=%s)",
+                    diag.get("url", ""),
+                    diag.get("title", ""),
+                    m.get("loginForm"),
+                    m.get("challenge"),
+                    m.get("authWall"),
+                )
+                return False
+            await page.wait_for_timeout(1400 * attempt)
+    return False
 
 
 async def get_post_text(post) -> str:
@@ -877,11 +951,9 @@ async def run():
                 log.info(f"🛑 Daily limit of {daily_limit} reached — sleeping until next round")
                 await asyncio.sleep(30 * 60)
                 log.info("🔄 Refreshing feed page...")
-                await page.goto(FEED_HOME)
-                try:
-                    await wait_for_feed_ready(page)
-                except Exception:
-                    pass
+                ok = await refresh_feed_page(page)
+                if not ok:
+                    log.error("❌ Feed reload failed — will retry next round")
                 continue
 
             # Cap per-round to whichever is smaller: 6 or remaining quota
@@ -985,11 +1057,10 @@ async def run():
             await asyncio.sleep(30 * 60)
 
             log.info("🔄 Refreshing feed page...")
-            await page.goto(FEED_HOME)
-            try:
-                await wait_for_feed_ready(page)
+            ok = await refresh_feed_page(page)
+            if ok:
                 log.info("✅ Feed refreshed successfully")
-            except Exception:
+            else:
                 log.error("❌ Feed reload failed — will retry next round")
 
 
