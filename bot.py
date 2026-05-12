@@ -606,7 +606,12 @@ async def return_to_feed_home(page) -> None:
         try:
             await wait_for_feed_ready(page, timeout_ms=40000)
         except Exception as e:
-            log.warning("⚠️  /feed/ nav ok but readiness soft-fail: %s", e)
+            await hydrate_feed_timeline(page, passes=8)
+            await page.wait_for_timeout(500)
+            if await dom_has_encoded_activity_updates(page):
+                log.info("✅ /feed/ ready via permalink sweep (card selectors lagged)")
+            else:
+                log.warning("⚠️  /feed/ nav ok but readiness soft-fail: %s", e)
     except Exception as e:
         log.warning(f"⚠️  RETURN_TO_FEED_NAV {e}")
 
@@ -695,6 +700,12 @@ async def wait_for_feed_ready(page, timeout_ms: float = 55000):
     while time.monotonic() < deadline:
         slot_ms = (deadline - time.monotonic()) * 1000.0
         if slot_ms < 300:
+            # Avoid exiting the loop without a final permalink sweep (otherwise we
+            # often re-raise a short wait_for_selector timeout that looks like a 3s
+            # flake while the SPA has already injected URN markup).
+            if await dom_has_encoded_activity_updates(page):
+                log.info("✅ Feed detected via permalinks (tail of readiness window)")
+                return
             break
         slice_ms = min(4500.0, slot_ms)
         try:
@@ -717,6 +728,12 @@ async def wait_for_feed_ready(page, timeout_ms: float = 55000):
         if await dom_has_encoded_activity_updates(page):
             log.info("✅ Feed detected via permalinks after scroll")
             return
+
+    await hydrate_feed_timeline(page, passes=10)
+    await page.wait_for_timeout(600)
+    if await dom_has_encoded_activity_updates(page):
+        log.info("✅ Feed detected via permalinks (post-wait hydrate sweep)")
+        return
 
     if last_exc:
         raise last_exc
@@ -765,7 +782,14 @@ async def refresh_feed_page(page) -> bool:
     """Navigate to feed with retries and stronger settle steps."""
     for attempt in range(1, 4):
         try:
-            await page.goto(FEED_HOME, wait_until="domcontentloaded", timeout=90000)
+            try:
+                cur = (page.url or "").lower()
+            except Exception:
+                cur = ""
+            if attempt >= 2 and "linkedin.com/feed" in cur:
+                await page.reload(wait_until="domcontentloaded", timeout=90000)
+            else:
+                await page.goto(FEED_HOME, wait_until="domcontentloaded", timeout=90000)
             await dismiss_sticky_alerts(page)
             await page.wait_for_timeout(2200)
             if LINKEDIN_WAIT_NETWORK_IDLE:
@@ -773,6 +797,7 @@ async def refresh_feed_page(page) -> bool:
                     await page.wait_for_load_state("networkidle", timeout=30000)
                 except Exception:
                     pass
+            await hydrate_feed_timeline(page, passes=10)
             await wait_for_feed_ready(page, timeout_ms=45000)
             return True
         except Exception as e:
@@ -781,7 +806,7 @@ async def refresh_feed_page(page) -> bool:
             m = diag.get("markers", {})
             if m.get("loginForm"):
                 log.warning("⚠️  Feed refresh hit login page — attempting auto-login")
-                if await perform_linkedin_login(page):
+                if await perform_linkedin_login(page, save_state_page=page):
                     continue
             if m.get("challenge") or m.get("authWall"):
                 log.error(
@@ -815,11 +840,20 @@ async def perform_linkedin_login(page, *, save_state_page=None) -> bool:
         pass
     await page.wait_for_timeout(1000)
 
+    # LinkedIn's login form ALSO ships a hidden <input name="session_key"> CSRF token
+    # before the visible email field; excluding type="hidden" (and using :visible) keeps
+    # .first from binding to that token element (which then fails fill() as "not visible").
     user_input = page.locator(
-        'input[name="session_key"], input#username, input[name="username"], input[type="email"]'
+        'input#username:visible, '
+        'input[name="session_key"]:not([type="hidden"]):visible, '
+        'input[name="username"]:not([type="hidden"]):visible, '
+        'input[type="email"]:visible'
     ).first
     pass_input = page.locator(
-        'input[name="session_password"], input#password, input[name="password"], input[type="password"]'
+        'input#password:visible, '
+        'input[name="session_password"]:not([type="hidden"]):visible, '
+        'input[name="password"]:not([type="hidden"]):visible, '
+        'input[type="password"]:visible'
     ).first
 
     try:
@@ -837,8 +871,8 @@ async def perform_linkedin_login(page, *, save_state_page=None) -> bool:
                     await page.wait_for_timeout(500)
                 except Exception:
                     pass
-        await user_input.wait_for(state="attached", timeout=12000)
-        await pass_input.wait_for(state="attached", timeout=12000)
+        await user_input.wait_for(state="visible", timeout=15000)
+        await pass_input.wait_for(state="visible", timeout=15000)
     except Exception:
         diag = await inspect_feed_blockers(page)
         m = diag.get("markers", {})
@@ -851,10 +885,16 @@ async def perform_linkedin_login(page, *, save_state_page=None) -> bool:
         return False
 
     try:
+        await user_input.click(timeout=8000)
+        await user_input.fill("")
         await user_input.fill(EMAIL)
+        await pass_input.click(timeout=8000)
+        await pass_input.fill("")
         await pass_input.fill(PASSWORD)
         await page.locator(
-            'button[type="submit"], button[data-litms-control-urn*="login-submit"]'
+            'button[type="submit"]:visible, '
+            'button[data-litms-control-urn*="login-submit"]:visible, '
+            'button[aria-label*="Sign in"]:visible'
         ).first.click(timeout=10000)
         log.info("⏳ Submitted login form; waiting for post-auth redirect...")
     except Exception as e:
