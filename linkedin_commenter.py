@@ -64,7 +64,7 @@ async def generate_comment(post_text: str) -> str:
     if USE_GEMINI:
         client = genai.Client(api_key=GEMINI_API_KEY)
         response = client.models.generate_content(
-            model="gemini-2.5-flash-lite",
+            model="gemini-2.0-flash",
             contents=full_prompt
         )
         return response.text.strip()

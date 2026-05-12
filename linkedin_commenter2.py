@@ -145,7 +145,7 @@ async def generate_comment(post_text: str) -> str:
                 log.debug(f"🤖 Calling Gemini with key #{_gemini_key_idx + 1}")
                 client = genai.Client(api_key=key)
                 response = client.models.generate_content(
-                    model="gemini-3.1-flash-lite",
+                    model="gemini-2.0-flash",
                     contents=full_prompt
                 )
                 comment = response.text.strip()
