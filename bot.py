@@ -211,7 +211,7 @@ async def generate_comment(post_text: str) -> str:
         while True:
             key = current_gemini_key()
             if key is None:
-                log.error("❌ No Gemini keys available — falling back to mock")
+                log.error("❌ No Gemini keys available")
                 break
             try:
                 log.debug(f"🤖 Calling Gemini key #{_gemini_key_idx + 1}")
@@ -226,6 +226,7 @@ async def generate_comment(post_text: str) -> str:
             except ResourceExhausted as e:
                 log.warning(f"⚠️  Gemini key #{_gemini_key_idx + 1} rate limited (429): {e}")
                 if rotate_gemini_key() is None:
+                    log.error("❌ All Gemini keys exhausted")
                     break
             except Exception as e:
                 log.error(f"❌ Gemini error: {e}")
@@ -245,18 +246,9 @@ async def generate_comment(post_text: str) -> str:
         except Exception as e:
             log.error(f"❌ Groq error: {e}")
 
-    log.warning("⚠️  Using mock comment")
-    mocks = [
-        "Great insights! Thanks for sharing this perspective.",
-        "This is really valuable. Appreciate the post!",
-        "Interesting point — looking forward to more content like this.",
-        "Well said! This resonates with my experience.",
-        "Thanks for breaking this down so clearly!",
-        "Excellent analysis, gives me a lot to think about.",
-        "Really appreciate you sharing this.",
-        "Spot on — great work putting this together."
-    ]
-    return mocks[len(post_text.strip()) % len(mocks)]
+    raise RuntimeError(
+        "Comment generation failed: configure GEMINI_API_KEY (USE_GEMINI=true) or LLM_API_KEY for Groq."
+    )
 
 # ─────────────────────────────────────────────
 # Playwright helpers
@@ -973,7 +965,9 @@ async def submit_comment(page, comment_box, post) -> bool:
 async def run():
     log.info("=" * 60)
     log.info("🚀 LinkedIn bot starting up")
-    log.info(f"   LLM provider : {'Gemini' if USE_GEMINI else 'Groq' if groq_client else 'Mock'}")
+    log.info(
+        f"   LLM provider : {'Gemini' if USE_GEMINI else 'Groq' if groq_client else 'none (set keys)'}"
+    )
     if USE_GEMINI:
         log.info(f"   Gemini keys  : {len(GEMINI_KEYS)} loaded")
     log.info(f"   State file   : {STATE_FILE}")

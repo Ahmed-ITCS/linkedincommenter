@@ -1,6 +1,4 @@
 # Environment & secrets
-.env
-.env.*
 !.env.example
 
 # Python
@@ -44,10 +42,11 @@ linkedin_bot.log
 .DS_Store
 Thumbs.db
 .idea/
-.vscode/
 *.swp
 *.swo
 *~
 
 # Cursor / local tooling (optional)
 .cursor/
+config.bat
+node_modules

@@ -76,20 +76,9 @@ async def generate_comment(post_text: str) -> str:
             temperature=0.7
         )
         return resp.choices[0].message.content.strip()
-    else:
-        print("⚠️ No LLM API configured, using mock comments")
-        mock_comments = [
-            "Great insights! Thanks for sharing this perspective.",
-            "This is really valuable information. Appreciate the post!",
-            "Interesting point! Looking forward to more content like this.",
-            "Well said! This resonates with my experience as well.",
-            "Thanks for breaking this down so clearly!",
-            "Excellent analysis! This gives me a lot to think about.",
-            "Really appreciate you sharing this. Very helpful!",
-            "This is spot on! Great work putting this together."
-        ]
-        index = len(post_text.strip()) % len(mock_comments)
-        return mock_comments[index]
+    raise RuntimeError(
+        "No LLM configured: set GEMINI_API_KEY (and USE_GEMINI=true) or LLM_API_KEY for Groq."
+    )
 
 async def get_post_text(post) -> str:
     """Extract only the main post body text, not comments or links."""

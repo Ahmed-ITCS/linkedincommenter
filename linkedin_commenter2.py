@@ -138,7 +138,7 @@ async def generate_comment(post_text: str) -> str:
         while True:
             key = current_gemini_key()
             if key is None:
-                log.error("❌ No Gemini keys available — falling back to mock comment")
+                log.error("❌ No Gemini keys available")
                 break
 
             try:
@@ -156,7 +156,7 @@ async def generate_comment(post_text: str) -> str:
                 log.warning(f"⚠️  Gemini key #{_gemini_key_idx + 1} hit rate limit (429): {e}")
                 new_key = rotate_gemini_key()
                 if new_key is None:
-                    log.error("❌ All Gemini keys exhausted — falling back to mock comment")
+                    log.error("❌ All Gemini keys exhausted")
                     break
 
             except Exception as e:
@@ -178,19 +178,9 @@ async def generate_comment(post_text: str) -> str:
         except Exception as e:
             log.error(f"❌ Groq API error: {e}")
 
-    # Mock fallback
-    log.warning("⚠️  Using mock comment (no LLM available)")
-    mock_comments = [
-        "Great insights! Thanks for sharing this perspective.",
-        "This is really valuable information. Appreciate the post!",
-        "Interesting point! Looking forward to more content like this.",
-        "Well said! This resonates with my experience as well.",
-        "Thanks for breaking this down so clearly!",
-        "Excellent analysis! This gives me a lot to think about.",
-        "Really appreciate you sharing this. Very helpful!",
-        "This is spot on! Great work putting this together."
-    ]
-    return mock_comments[len(post_text.strip()) % len(mock_comments)]
+    raise RuntimeError(
+        "Comment generation failed: configure GEMINI_API_KEY (USE_GEMINI=true) or LLM_API_KEY for Groq."
+    )
 
 
 # ─────────────────────────────────────────────
@@ -250,7 +240,9 @@ async def submit_comment(page, comment_box, post) -> bool:
 async def run():
     log.info("=" * 60)
     log.info("🚀 LinkedIn bot starting up")
-    log.info(f"   LLM provider  : {'Gemini' if USE_GEMINI else 'Groq' if groq_client else 'Mock'}")
+    log.info(
+        f"   LLM provider  : {'Gemini' if USE_GEMINI else 'Groq' if groq_client else 'none (set keys)'}"
+    )
     if USE_GEMINI:
         log.info(f"   Gemini keys   : {len(GEMINI_KEYS)} loaded")
     log.info(f"   State file    : {STATE_FILE}")
