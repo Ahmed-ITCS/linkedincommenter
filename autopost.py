@@ -1,6 +1,6 @@
 """
 auto_poster.py — LinkedIn auto-poster module
-Generates a post (text) using Gemini and an image using Pollinations.ai (free, no API key).
+Generates a post (text) using Z.ai (GLM) and an image using Pollinations.ai (free, no API key).
 Drop this file next to your existing linkedin_bot.py and import it there.
 """
 
@@ -13,8 +13,9 @@ import time
 from datetime import date, datetime
 from pathlib import Path
 
-from google import genai
-from google.api_core.exceptions import ResourceExhausted
+from openai import AsyncOpenAI
+
+from zai_llm import generate_text
 
 log = logging.getLogger(__name__)
 
@@ -101,9 +102,9 @@ def pick_topic() -> str:
 
 
 # ─────────────────────────────────────────────
-# Generate post TEXT with Gemini
+# Generate post TEXT with Z.ai
 # ─────────────────────────────────────────────
-async def generate_post_text(topic: str, gemini_key: str) -> str:
+async def generate_post_text(topic: str) -> str:
     prompt = f"""You are a software engineer who works in backend, knows a bit of frontend and DevOps,
 and aspires to be a solution architect. Write a genuine, engaging LinkedIn post about:
 
@@ -121,18 +122,7 @@ Rules:
 
 Return ONLY the post text, nothing else."""
 
-    try:
-        client   = genai.Client(api_key=gemini_key)
-        response = client.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=prompt,
-        )
-        text = response.text.strip()
-        log.info(f"✍️  Post text generated ({len(text)} chars)")
-        return text
-    except Exception as e:
-        log.error(f"❌ Failed to generate post text: {e}")
-        raise
+    return await generate_text(prompt, max_tokens=1024, temperature=0.8)
 
 
 # ─────────────────────────────────────────────
@@ -469,8 +459,8 @@ What's the most painful production bug you've tracked down? Was it also hiding i
 # ─────────────────────────────────────────────
 async def maybe_auto_post(
     page,
-    current_gemini_key_fn,
-    rotate_gemini_key_fn,
+    current_zai_key_fn,
+    rotate_zai_key_fn,
     mock_text: bool = False,
     dry_run: bool = False,
 ):
@@ -480,9 +470,9 @@ async def maybe_auto_post(
 
     Args:
         page                  : Playwright page (already logged-in LinkedIn feed)
-        current_gemini_key_fn : callable → current Gemini API key string
-        rotate_gemini_key_fn  : callable → rotate + return next key (or None)
-        mock_text             : if True, skip Gemini and use MOCK_POST_TEXT instead
+        current_zai_key_fn    : callable → current Z.ai API key string
+        rotate_zai_key_fn     : callable → rotate + return next key (or None)
+        mock_text             : if True, skip Z.ai and use MOCK_POST_TEXT instead
         dry_run               : if True, open composer + type but do NOT click Post
     """
     init_poster_db()
@@ -493,7 +483,7 @@ async def maybe_auto_post(
 
     log.info("=" * 55)
     log.info("📢 AUTO-POST: Starting daily post generation")
-    if mock_text: log.info("   ✏️  mock_text=True  — skipping Gemini")
+    if mock_text: log.info("   ✏️  mock_text=True  — skipping Z.ai")
     if dry_run:   log.info("   🛑  dry_run=True    — Post button will NOT be clicked")
     log.info("=" * 55)
 
@@ -504,23 +494,14 @@ async def maybe_auto_post(
         post_text = MOCK_POST_TEXT
         log.info(f"✍️  Using mock post text ({len(post_text)} chars)")
     else:
-        post_text = None
-        while True:
-            key = current_gemini_key_fn()
-            if not key:
-                log.error("❌ No Gemini key available for post text generation")
-                return
-            try:
-                post_text = await generate_post_text(topic, key)
-                break
-            except ResourceExhausted:
-                log.warning("⚠️  Gemini 429 on text generation — rotating key")
-                if rotate_gemini_key_fn() is None:
-                    log.error("❌ All keys exhausted — aborting auto-post")
-                    return
-            except Exception:
-                log.error("❌ Unexpected error in text generation — aborting auto-post")
-                return
+        if not current_zai_key_fn():
+            log.error("❌ No Z.ai key available for post text generation")
+            return
+        try:
+            post_text = await generate_post_text(topic)
+        except Exception:
+            log.error("❌ Unexpected error in text generation — aborting auto-post")
+            return
 
     # --- Generate image via Pollinations.ai (3 retries built-in) ---
     image_path = None

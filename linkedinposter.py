@@ -32,41 +32,7 @@ EMAIL      = os.getenv("LINKEDIN_EMAIL")
 PASSWORD   = os.getenv("LINKEDIN_PASSWORD")
 STATE_FILE = "linkedin_state.json"
 
-# ─────────────────────────────────────────────
-# Gemini key stubs (autopost signature needs
-# these callables even in mock/dry-run mode)
-# ─────────────────────────────────────────────
-def _load_gemini_keys() -> list[str]:
-    keys = []
-    i = 1
-    while True:
-        k = os.getenv(f"GEMINI_API_KEY_{i}")
-        if not k:
-            break
-        keys.append(k)
-        i += 1
-    if not keys:
-        fallback = os.getenv("GEMINI_API_KEY")
-        if fallback:
-            keys.append(fallback)
-    return keys
-
-GEMINI_KEYS     = _load_gemini_keys()
-_gemini_key_idx = 0
-
-def current_gemini_key() -> str | None:
-    if not GEMINI_KEYS:
-        return None
-    return GEMINI_KEYS[_gemini_key_idx]
-
-def rotate_gemini_key() -> str | None:
-    global _gemini_key_idx
-    _gemini_key_idx += 1
-    if _gemini_key_idx >= len(GEMINI_KEYS):
-        return None
-    return GEMINI_KEYS[_gemini_key_idx]
-
-
+from zai_llm import current_zai_key, rotate_zai_key
 # ─────────────────────────────────────────────
 # Main — post only, no commenting
 # ─────────────────────────────────────────────
@@ -122,9 +88,9 @@ async def run():
         # ── Single test run of the auto-poster ──
         await maybe_auto_post(
             page,
-            current_gemini_key,
-            rotate_gemini_key,
-            mock_text=True,   # skip Gemini — use hardcoded test post
+            current_zai_key,
+            rotate_zai_key,
+            mock_text=True,   # skip Z.ai — use hardcoded test post
             dry_run=True,     # open composer + type text but do NOT click Post
         )
 
