@@ -11,9 +11,9 @@ from datetime import datetime
 from urllib.parse import quote, unquote
 from dotenv import load_dotenv
 from playwright.async_api import async_playwright
-from google import genai
-from google.api_core.exceptions import ResourceExhausted
 from openai import AsyncOpenAI
+
+from zai_llm import ZAI_KEYS, generate_text
 
 load_dotenv()
 
@@ -39,7 +39,7 @@ log = logging.getLogger(__name__)
 EMAIL       = os.getenv("LINKEDIN_EMAIL")
 PASSWORD    = os.getenv("LINKEDIN_PASSWORD")
 LLM_API_KEY = os.getenv("LLM_API_KEY")
-USE_GEMINI  = os.getenv("USE_GEMINI", "true").lower() == "true"
+USE_ZAI     = os.getenv("USE_ZAI", "true").lower() == "true"
 STATE_FILE  = "linkedin_state.json"
 DB_FILE     = "commented_posts.db"
 FEED_HOME   = "https://www.linkedin.com/feed/"
@@ -75,39 +75,6 @@ Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
 """
 
 DEFAULT_DAILY_LIMIT = 20
-
-# ─────────────────────────────────────────────
-# Gemini key rotation
-# ─────────────────────────────────────────────
-def _load_gemini_keys() -> list[str]:
-    keys = []
-    i = 1
-    while True:
-        k = os.getenv(f"GEMINI_API_KEY_{i}")
-        if not k:
-            break
-        keys.append(k)
-        i += 1
-    if not keys:
-        fallback = os.getenv("GEMINI_API_KEY")
-        if fallback:
-            keys.append(fallback)
-    return keys
-
-GEMINI_KEYS     = _load_gemini_keys()
-_gemini_key_idx = 0
-
-def current_gemini_key() -> str | None:
-    return GEMINI_KEYS[_gemini_key_idx] if GEMINI_KEYS else None
-
-def rotate_gemini_key() -> str | None:
-    global _gemini_key_idx
-    _gemini_key_idx += 1
-    if _gemini_key_idx >= len(GEMINI_KEYS):
-        log.error("🔴 All Gemini API keys exhausted")
-        return None
-    log.warning(f"🔁 Rotated to Gemini key #{_gemini_key_idx + 1}")
-    return GEMINI_KEYS[_gemini_key_idx]
 
 # ─────────────────────────────────────────────
 # Groq client
@@ -207,30 +174,11 @@ async def generate_comment(post_text: str) -> str:
     )
     full_prompt = f"{prompt}\n\nPost: {post_text[:700]}"
 
-    if USE_GEMINI:
-        while True:
-            key = current_gemini_key()
-            if key is None:
-                log.error("❌ No Gemini keys available")
-                break
-            try:
-                log.debug(f"🤖 Calling Gemini key #{_gemini_key_idx + 1}")
-                client = genai.Client(api_key=key)
-                response = client.models.generate_content(
-                    model="gemini-2.0-flash",
-                    contents=full_prompt
-                )
-                comment = response.text.strip()
-                log.info(f"🤖 Gemini generated comment ({len(comment)} chars)")
-                return comment
-            except ResourceExhausted as e:
-                log.warning(f"⚠️  Gemini key #{_gemini_key_idx + 1} rate limited (429): {e}")
-                if rotate_gemini_key() is None:
-                    log.error("❌ All Gemini keys exhausted")
-                    break
-            except Exception as e:
-                log.error(f"❌ Gemini error: {e}")
-                break
+    if USE_ZAI:
+        try:
+            return await generate_text(full_prompt, max_tokens=80, temperature=0.7)
+        except Exception as e:
+            log.error(f"❌ Z.ai error: {e}")
 
     elif groq_client:
         try:
@@ -247,7 +195,7 @@ async def generate_comment(post_text: str) -> str:
             log.error(f"❌ Groq error: {e}")
 
     raise RuntimeError(
-        "Comment generation failed: configure GEMINI_API_KEY (USE_GEMINI=true) or LLM_API_KEY for Groq."
+        "Comment generation failed: configure ZAI_API_KEY (USE_ZAI=true) or LLM_API_KEY for Groq."
     )
 
 # ─────────────────────────────────────────────
@@ -966,10 +914,10 @@ async def run():
     log.info("=" * 60)
     log.info("🚀 LinkedIn bot starting up")
     log.info(
-        f"   LLM provider : {'Gemini' if USE_GEMINI else 'Groq' if groq_client else 'none (set keys)'}"
+        f"   LLM provider : {'Z.ai' if USE_ZAI else 'Groq' if groq_client else 'none (set keys)'}"
     )
-    if USE_GEMINI:
-        log.info(f"   Gemini keys  : {len(GEMINI_KEYS)} loaded")
+    if USE_ZAI:
+        log.info(f"   Z.ai keys    : {len(ZAI_KEYS)} loaded")
     log.info(f"   State file   : {STATE_FILE}")
     log.info(f"   DB file      : {DB_FILE}")
     log.info(

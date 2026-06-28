@@ -5,16 +5,16 @@ import sqlite3
 import os
 from dotenv import load_dotenv
 from playwright.async_api import async_playwright
-from google import genai
 from openai import AsyncOpenAI
+
+from zai_llm import generate_text
 
 load_dotenv()
 
 EMAIL = os.getenv("LINKEDIN_EMAIL")
 PASSWORD = os.getenv("LINKEDIN_PASSWORD")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 LLM_API_KEY = os.getenv("LLM_API_KEY")
-USE_GEMINI = os.getenv("USE_GEMINI", "true").lower() == "true"
+USE_ZAI = os.getenv("USE_ZAI", "true").lower() == "true"
 STATE_FILE = "linkedin_state.json"
 DB_FILE = "commented_posts.db"
 
@@ -57,17 +57,12 @@ def mark_as_commented(urn: str, text: str = ""):
     conn.close()
 
 async def generate_comment(post_text: str) -> str:
-    """Generate a comment using LLM (Gemini or Groq)."""
+    """Generate a comment using LLM (Z.ai or Groq)."""
     prompt = "you are a software engineer, you work in backend but can handle a bit of frontend and devops, aspire to be a solution architect. Write a short (1-2 sentences), professional, human-sounding LinkedIn comment. Add value or show genuine interest. No emojis."
     full_prompt = f"{prompt}\n\nPost: {post_text[:700]}"
 
-    if USE_GEMINI:
-        client = genai.Client(api_key=GEMINI_API_KEY)
-        response = client.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=full_prompt
-        )
-        return response.text.strip()
+    if USE_ZAI:
+        return await generate_text(full_prompt, max_tokens=80, temperature=0.7)
     elif groq_client:
         resp = await groq_client.chat.completions.create(
             model="llama-3.1-70b-versatile",
@@ -77,7 +72,7 @@ async def generate_comment(post_text: str) -> str:
         )
         return resp.choices[0].message.content.strip()
     raise RuntimeError(
-        "No LLM configured: set GEMINI_API_KEY (and USE_GEMINI=true) or LLM_API_KEY for Groq."
+        "No LLM configured: set ZAI_API_KEY (and USE_ZAI=true) or LLM_API_KEY for Groq."
     )
 
 async def get_post_text(post) -> str:
